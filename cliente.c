@@ -293,13 +293,13 @@ void set_ack_timeout(Message *msg, uint64_t tout) {
         logerr("Timer arming error");
 }
 
+// Create message
 Message make_message(char *buf, uint64_t seqnum) {
     Message m;
     struct timespec ts;
 
     clock_gettime(CLOCK_REALTIME, &ts);
 
-    // Create message
     m.seqnum = seqnum;
     m.sec = ts.tv_sec;
     m.nsec = ts.tv_nsec;
