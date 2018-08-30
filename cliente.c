@@ -298,7 +298,6 @@ void client_handler(int sockfd, FILE *fin,
         if (window->count == window->width) {
             locked = true;
 
-            /* printf("window->count %u window->width %u\n", window->count, window->width); */
             while (locked) {
 #ifdef DEBUG
                 printf("[!] Window waiting for Ack with seqnum=%u\n",
@@ -308,9 +307,17 @@ void client_handler(int sockfd, FILE *fin,
 #ifdef DEBUG
                 printf("[!] Ack (seqnum=%u)\n", ack.seqnum);
 #endif
-                if (check_ack_md5(&ack)
-                      && ack.seqnum == window->first->next->msg.seqnum)
-                    locked = false;
+                if (check_ack_md5(&ack)) {
+#ifdef DEBUG
+                    printf("--- MD5: OK\n");
+#endif
+                    if (ack.seqnum == window->first->next->msg.seqnum)
+                        locked = false;
+                } else {
+#ifdef DEBUG
+                    printf("--- MD5: CORRUPT\n");
+#endif
+                }
             }
         }
     }
