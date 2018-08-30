@@ -257,6 +257,59 @@ void recv_ack(AckMessage *am, int sockfd, void *addr) {
     memcpy(&am->md5, netbuf+20, 16);
 }
 
+
+// Client timeout
+void ack_timeout(union sigval arg) {
+    Message *msg = arg.sival_ptr;
+
+#ifdef DEBUG
+    printf("Ack for %u timed out! Retransmitting...\n", msg->seqnum);
+#endif
+}
+
+// Setup ack reception timeout
+void set_ack_timeout(Message *msg, uint64_t tout) {
+    timer_t timer_id;
+    int status;
+    struct itimerspec ts;
+    struct sigevent se;
+
+    se.sigev_notify = SIGEV_THREAD;
+    se.sigev_value.sival_ptr = (void*)msg;
+    se.sigev_notify_function = ack_timeout;
+    se.sigev_notify_attributes = NULL;
+
+    ts.it_value.tv_sec = tout;
+    ts.it_value.tv_nsec = 0;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    status = timer_create(CLOCK_REALTIME, &se, &timer_id);
+    if (status == -1)
+        logerr("Timer creation error");
+
+    status = timer_settime(timer_id, 0, &ts, 0);
+    if (status == -1)
+        logerr("Timer arming error");
+}
+
+Message make_message(char *buf, uint64_t seqnum) {
+    Message m;
+    struct timespec ts;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    // Create message
+    m.seqnum = seqnum;
+    m.sec = ts.tv_sec;
+    m.nsec = ts.tv_nsec;
+    m.sz = strlen(buf);
+    m.buf = buf;
+    get_msg_md5(&m, m.md5);
+
+    return m;
+}
+
 // Client handler
 void client_handler(int sockfd, FILE *fin,
                     void *server_addr, uint64_t width) {
@@ -267,21 +320,13 @@ void client_handler(int sockfd, FILE *fin,
     Message m;
     AckMessage ack;
 
-    struct timespec ts;
     uint64_t seqnum;
     bool locked;
 
     printf("Sending file...\n");
     while (fgets(buf, MAXLINE, fin)) {
-        clock_gettime(CLOCK_REALTIME, &ts);
-
-        // Create message
-        m.seqnum = seqnum;
-        m.sec = ts.tv_sec;
-        m.nsec = ts.tv_nsec;
-        m.sz = strlen(buf);
-        m.buf = buf;
-        get_msg_md5(&m, m.md5);
+        // Make message
+        m = make_message(buf, seqnum);
 
         // Put message into sliding window
         sliding_window_insert(window, m);

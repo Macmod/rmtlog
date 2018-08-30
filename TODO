@@ -1,7 +1,7 @@
 - Message corrupter
 - Handle wrong md5 [x]
 - Handle timeouts
-    - Ack timeout
+    - Ack timeout [~]
     - Inactive user timeout [x]
         - Add mutexes to client!
 - Sliding window client [~]
