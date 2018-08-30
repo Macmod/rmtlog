@@ -41,6 +41,7 @@ typedef struct AckMessage {
 // Sliding Window
 typedef struct SlidingWindowElem {
     Message msg;
+    timer_t timer;
     struct SlidingWindowElem *next;
 } SlidingWindowElem;
 
@@ -65,6 +66,7 @@ void sliding_window_insert(SlidingWindow *sw, Message m) {
     SlidingWindowElem *aux;
 
     swe->msg = m;
+    swe->timer = NULL;
     swe->next = NULL;
 
     aux = sw->last;
@@ -258,24 +260,49 @@ void recv_ack(AckMessage *am, int sockfd, void *addr) {
 }
 
 
-// Client timeout
+// Ack timeout
 void ack_timeout(union sigval arg) {
     Message *msg = arg.sival_ptr;
 
 #ifdef DEBUG
-    printf("Ack for %u timed out! Retransmitting...\n", msg->seqnum);
+    printf("[!] Ack for %u timed out! Retransmitting...\n", msg->seqnum);
 #endif
+
+    /* send_message(m, sockfd, msg->addr); */
+#ifdef DEBUG
+    printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
+#endif
+
+    /* set_ack_timeout(m, tout); */
+}
+
+// Unset ack reception timeout
+void unset_ack_timeout(SlidingWindowElem *swe) {
+    if (swe->timer == NULL)
+        return;
+
+    int status;
+    struct itimerspec ts;
+
+    ts.it_value.tv_sec = 0;
+    ts.it_value.tv_nsec = 0;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    status = timer_settime(swe->timer, 0, &ts, 0);
+    if (status == -1)
+        logerr("Timer disarming error");
 }
 
 // Setup ack reception timeout
-void set_ack_timeout(Message *msg, uint64_t tout) {
+void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
     timer_t timer_id;
     int status;
     struct itimerspec ts;
     struct sigevent se;
 
     se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)msg;
+    se.sigev_value.sival_ptr = (void*)swe;
     se.sigev_notify_function = ack_timeout;
     se.sigev_notify_attributes = NULL;
 
@@ -291,6 +318,8 @@ void set_ack_timeout(Message *msg, uint64_t tout) {
     status = timer_settime(timer_id, 0, &ts, 0);
     if (status == -1)
         logerr("Timer arming error");
+
+    swe->timer = timer_id;
 }
 
 // Create message
@@ -311,8 +340,8 @@ Message make_message(char *buf, uint64_t seqnum) {
 }
 
 // Client handler
-void client_handler(int sockfd, FILE *fin,
-                    void *server_addr, uint64_t width) {
+void client_handler(int sockfd, FILE *fin, void *server_addr,
+                    uint64_t width, uint64_t tout) {
     char buf[MAXLINE];
 
     SlidingWindow *window = make_sliding_window(width);
@@ -336,6 +365,9 @@ void client_handler(int sockfd, FILE *fin,
 #ifdef DEBUG
         printf("[!] Sent message (seqnum=%u, len=%u)\n", m.seqnum, m.sz);
 #endif
+
+        // Set ack timeout
+        set_ack_timeout(window->last, tout);
 
         seqnum++;
 
@@ -433,7 +465,7 @@ int main(int argc, char *argv[]) {
         logerr("Socket error");
 
     // Client handler
-    client_handler(sockfd, fin, &server, wtx);
+    client_handler(sockfd, fin, &server, wtx, tout);
 
     /* fprintf("%d %d %d %.3fs", nmsg, nerror, time); */
 

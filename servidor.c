@@ -170,6 +170,7 @@ Client *insert_client(ClientList *cl, struct sockaddr_in addr, uint64_t width) {
     Client *c = (Client*)malloc(sizeof(Client));
     c->addr_id = addr;
     c->sw = make_sliding_window(width);
+    c->timer = NULL;
 
     c->next = NULL;
     if (cl->last == NULL) {
@@ -380,6 +381,24 @@ void client_timeout(union sigval arg) {
     remove_client(&clist, c->addr_id);
 }
 
+// Unset client deletion timeout
+void unset_client_timeout(Client *client) {
+    if (client->timer == NULL)
+        return;
+
+    int status;
+    struct itimerspec ts;
+
+    ts.it_value.tv_sec = 0;
+    ts.it_value.tv_nsec = 0;
+    ts.it_interval.tv_sec = 0;
+    ts.it_interval.tv_nsec = 0;
+
+    status = timer_settime(client->timer, 0, &ts, 0);
+    if (status == -1)
+        logerr("Timer disarming error");
+}
+
 // Setup client deletion timeout
 void set_client_timeout(Client *client) {
     timer_t timer_id;
@@ -410,6 +429,9 @@ void set_client_timeout(Client *client) {
 
 // Handle client message
 void *message_handler(int sockfd, Message m, Client *client, FILE *fin) {
+    // Unset client timeout
+    unset_client_timeout(client);
+
     // Ack placeholder
     AckMessage am;
 
