@@ -11,8 +11,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <openssl/md5.h>
-#define IDLE_TIMEOUT_SECS 60
-#define IDLE_TIMEOUT_USECS 0
 #define MAXLINE 65536
 #define DEBUG true
 
@@ -381,15 +379,6 @@ int main(int argc, char *argv[]) {
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd == -1)
         logerr("Socket error");
-
-    // Setup timeout
-    struct timeval timeout = {
-        .tv_sec = IDLE_TIMEOUT_SECS,
-        .tv_usec = IDLE_TIMEOUT_USECS
-    };
-
-    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
-        logerr("Setsockopt error");
 
     // Client handler
     client_handler(sockfd, fin, &server, wtx);
