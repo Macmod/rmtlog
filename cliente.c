@@ -10,33 +10,9 @@
 #include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <openssl/md5.h>
-#define MAXLINE 65536
+#include "utils.h"
+#include "message.h"
 #define DEBUG true
-
-// Handle errors from errno
-extern int errno;
-static inline void logerr(char *str) {
-   perror(str);
-   exit(EXIT_FAILURE);
-}
-
-// Message Structures
-typedef struct Message {
-    uint64_t seqnum;
-    uint64_t sec;
-    uint32_t nsec;
-    uint16_t sz;
-    char *buf;
-    char md5[16];
-} __attribute__((packed)) Message;
-
-typedef struct AckMessage {
-    uint64_t seqnum;
-    uint64_t sec;
-    uint32_t nsec;
-    char md5[16];
-} __attribute__((packed)) AckMessage;
 
 // Sliding Window
 typedef struct SlidingWindowElem {
@@ -95,170 +71,6 @@ void free_sliding_window(SlidingWindow *sw) {
         aux = ph;
     }
 }
-
-// Integrity
-void get_msg_md5(Message *msg, char *md5) {
-    MD5_CTX c;
-    MD5_Init(&c);
-    MD5_Update(&c, msg, 22);
-    MD5_Update(&c, msg->buf, msg->sz);
-    MD5_Final(md5, &c);
-}
-
-void get_ack_md5(AckMessage *ackmsg, char *md5) {
-    MD5_CTX c;
-    MD5_Init(&c);
-    MD5_Update(&c, ackmsg, 20);
-    MD5_Final(md5, &c);
-}
-
-bool check_msg_md5(Message *msg) {
-    char md5[16];
-    get_msg_md5(msg, md5);
-    return memcmp(msg->md5, md5, 16) == 0;
-}
-
-bool check_ack_md5(AckMessage *msg) {
-    char md5[16];
-    get_ack_md5(msg, md5);
-
-    return memcmp(msg->md5, md5, 16) == 0;
-}
-
-// Safe send
-uint32_t safe_send(int sockfd, void *buf, uint32_t total,
-                   struct sockaddr *dest_addr) {
-    ssize_t len;
-    len = sendto(sockfd, buf, total, 0, dest_addr, sizeof(*dest_addr));
-
-    if (len < 0) {
-        close(sockfd);
-        logerr("Send failed");
-    } else if (len == 0) {
-       close(sockfd);
-       fprintf(stderr, "Server closed the connection during client send.\n");
-       exit(EXIT_FAILURE);
-    }
-
-    return (uint32_t)len;
-}
-
-// Safe recv
-uint32_t safe_recv(int sockfd, void *buf, uint32_t total,
-                   struct sockaddr *src_addr) {
-   ssize_t i = 0,
-           len = 0;
-   socklen_t addrlen = sizeof(*src_addr);
-
-   for (; i < total &&
-           (len = recvfrom(sockfd, buf + i, total - i, 0, src_addr, &addrlen)) > 0;
-            i += len);
-
-   if (len < 0) {
-       close(sockfd);
-       logerr("Receive failed");
-   } else if (len == 0) {
-       close(sockfd);
-       fprintf(stderr, "Server closed the connection during client recv.\n");
-       exit(EXIT_FAILURE);
-   }
-
-   return (uint32_t)i;
-}
-
-// Read ulong from char* safely
-bool safe_read_long(char *str, unsigned long *num) {
-    char *end;
-
-    // Read decimal long
-    errno = 0;
-    *num = strtoul(str, &end, 10);
-
-    // Check for strtol error conditions
-    if (errno || end == str || *end != '\0')
-        return false;
-
-    return true;
-}
-
-// Read double from char* safely
-bool safe_read_double(char *str, double *num) {
-    char *end;
-
-    // Read decimal long
-    errno = 0;
-    *num = strtod(str, &end);
-
-    // Check for strtod error conditions
-    if (errno || end == str || *end != '\0')
-        return false;
-
-    return true;
-}
-
-// Read uint16 from char* safely
-bool safe_read_uint16(char *str, uint16_t *num) {
-    unsigned long lnum;
-
-    // Convert to uint16_t and store
-    bool read_result = safe_read_long(str, &lnum);
-
-    if (!read_result || lnum < 0 || lnum > UINT16_MAX)
-        return false;
-
-    *num = (uint16_t)lnum;
-    return true;
-}
-
-// Read uint64 from char* safely
-bool safe_read_uint64(char *str, uint64_t *num) {
-    unsigned long lnum;
-
-    // Convert to uint64_t and store
-    bool read_result = safe_read_long(str, &lnum);
-
-    if (!read_result || lnum < 0 || lnum > UINT64_MAX)
-        return false;
-
-    *num = (uint64_t)lnum;
-    return true;
-}
-
-void send_message(Message m, int sockfd, void *addr) {
-    char netbuf[MAXLINE+38];
-
-    // Build frame
-    uint64_t net_seqnum = (uint64_t)htonl(m.seqnum);
-    uint64_t net_sec = (uint64_t)htonl(m.sec);
-    uint32_t net_nsec = (uint32_t)htonl(m.nsec);
-    uint16_t net_sz = (uint16_t)htons(m.sz);
-    memcpy(netbuf, &net_seqnum, 8);
-    memcpy(netbuf+8, &net_sec, 8);
-    memcpy(netbuf+16, &net_nsec, 4);
-    memcpy(netbuf+20, &net_sz, 2);
-    memcpy(netbuf+22, m.buf, m.sz);
-    memcpy(netbuf+22+m.sz, m.md5, 16);
-
-    // Send frame header
-    safe_send(sockfd, netbuf, 22, addr);
-
-    // Send frame
-    safe_send(sockfd, netbuf+22, m.sz+16, addr);
-}
-
-void recv_ack(AckMessage *am, int sockfd, void *addr) {
-    char netbuf[36];
-
-    // Recv ack
-    safe_recv(sockfd, netbuf, 36, addr);
-
-    // Populate struct
-    memcpy(&am->seqnum, netbuf, 8);
-    memcpy(&am->sec, netbuf+8, 8);
-    memcpy(&am->nsec, netbuf+16, 4);
-    memcpy(&am->md5, netbuf+20, 16);
-}
-
 
 // Ack timeout
 void ack_timeout(union sigval arg) {
@@ -322,23 +134,6 @@ void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
     swe->timer = timer_id;
 }
 
-// Create message
-Message make_message(char *buf, uint64_t seqnum) {
-    Message m;
-    struct timespec ts;
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-
-    m.seqnum = seqnum;
-    m.sec = ts.tv_sec;
-    m.nsec = ts.tv_nsec;
-    m.sz = strlen(buf);
-    m.buf = buf;
-    get_msg_md5(&m, m.md5);
-
-    return m;
-}
-
 // Client handler
 void client_handler(int sockfd, FILE *fin, void *server_addr,
                     uint64_t width, uint64_t tout) {
@@ -352,7 +147,9 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
     uint64_t seqnum;
     bool locked;
 
-    printf("Sending file...\n");
+#ifdef DEBUG
+    printf("[!] Sending file...\n");
+#endif
     while (fgets(buf, MAXLINE, fin)) {
         // Make message
         m = make_message(buf, seqnum);
