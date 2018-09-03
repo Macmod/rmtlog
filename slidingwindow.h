@@ -7,6 +7,7 @@
 typedef struct SlidingWindowElem {
     Message msg;
     timer_t timer;
+    bool acked;
     struct SlidingWindowElem *next;
 } SlidingWindowElem;
 

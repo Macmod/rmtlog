@@ -86,7 +86,6 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
     AckMessage ack;
 
     uint64_t seqnum;
-    bool locked;
 
 #ifdef DEBUG
     printf("[!] Sending file...\n");
@@ -111,9 +110,7 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 
         // Block until ack of first element
         if (window->count == window->width) {
-            locked = true;
-
-            while (locked) {
+            while (!window->first->next->acked) {
 #ifdef DEBUG
                 printf("[!] Window waiting for Ack with seqnum=%u\n",
                        window->first->next->msg.seqnum);
@@ -127,7 +124,7 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
                     printf("--- MD5: OK\n");
 #endif
                     if (ack.seqnum == window->first->next->msg.seqnum)
-                        locked = false;
+                        window->first->next->acked = true;
                 } else {
 #ifdef DEBUG
                     printf("--- MD5: CORRUPT\n");

@@ -17,6 +17,7 @@ void sliding_window_insert(SlidingWindow *sw, Message m) {
 
     swe->msg = m;
     swe->next = NULL;
+    swe->acked = false;
 
     aux = sw->last;
     sw->last = aux->next = swe;

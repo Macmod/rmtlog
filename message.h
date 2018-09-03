@@ -12,7 +12,6 @@ typedef struct Message {
     uint16_t sz;
     char *buf;
     char md5[16];
-    bool acked;
 } __attribute__((packed)) Message;
 
 typedef struct AckMessage {
