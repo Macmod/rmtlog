@@ -14,20 +14,12 @@
 #define DEBUG true
 
 // Ack timeout
-void ack_timeout(union sigval arg) {
-    Message *msg = arg.sival_ptr;
-
-#ifdef DEBUG
-    printf("[!] Ack for %u timed out! Retransmitting...\n", msg->seqnum);
-#endif
-
-    /* send_message(m, sockfd, msg->addr); */
-#ifdef DEBUG
-    printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
-#endif
-
-    /* set_ack_timeout(m, tout); */
-}
+typedef struct AckTimeoutMsg {
+    int sockfd;
+    SlidingWindowElem *swe;
+    uint64_t tout;
+    struct sockaddr_in *addr;
+} AckTimeoutMsg;
 
 // Unset ack reception timeout
 void unset_ack_timeout(SlidingWindowElem *swe) {
@@ -48,14 +40,17 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
 }
 
 // Setup ack reception timeout
+void ack_timeout(union sigval);
 void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
+    AckTimeoutMsg *atm = malloc(sizeof(AckTimeoutMsg));
+
     timer_t timer_id;
     int status;
     struct itimerspec ts;
     struct sigevent se;
 
     se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)swe;
+    se.sigev_value.sival_ptr = (void*)atm;
     se.sigev_notify_function = ack_timeout;
     se.sigev_notify_attributes = NULL;
 
@@ -73,6 +68,28 @@ void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
         logerr("Timer arming error");
 
     swe->timer = timer_id;
+}
+
+void ack_timeout(union sigval arg) {
+    AckTimeoutMsg *atm = arg.sival_ptr;
+
+    SlidingWindowElem *swe = atm->swe;
+    int sockfd = atm->sockfd;
+    uint64_t tout = atm->tout;
+    struct sockaddr_in *addr = atm->addr;
+    Message *msg = &swe->msg;
+
+#ifdef DEBUG
+    printf("[!] Ack for %u timed out! Retransmitting...\n", msg->seqnum);
+#endif
+
+    send_message(msg, sockfd, addr);
+#ifdef DEBUG
+    printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
+#endif
+
+    set_ack_timeout(swe, tout);
+    free(atm);
 }
 
 // Client handler
@@ -98,7 +115,7 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
         sliding_window_insert(window, m);
 
         // Send message
-        send_message(m, sockfd, server_addr);
+        send_message(&m, sockfd, server_addr);
 #ifdef DEBUG
         printf("[!] Sent message (seqnum=%u, len=%u)\n", m.seqnum, m.sz);
 #endif

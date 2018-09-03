@@ -13,6 +13,7 @@
 Message make_message(char *buf, uint64_t seqnum) {
     Message m;
     struct timespec ts;
+    char *membuf = malloc(MAXLINE*sizeof(buf));
 
     clock_gettime(CLOCK_REALTIME, &ts);
 
@@ -20,7 +21,7 @@ Message make_message(char *buf, uint64_t seqnum) {
     m.sec = ts.tv_sec;
     m.nsec = ts.tv_nsec;
     m.sz = strlen(buf);
-    m.buf = buf;
+    m.buf = membuf;
     get_msg_md5(&m, m.md5);
 
     return m;
@@ -42,26 +43,26 @@ AckMessage make_ack(uint64_t seqnum) {
 }
 
 // Send message
-void send_message(Message m, int sockfd, void *addr) {
+void send_message(Message *m, int sockfd, void *addr) {
     char netbuf[MAXLINE+38];
 
     // Build frame
-    uint64_t net_seqnum = (uint64_t)htonl(m.seqnum);
-    uint64_t net_sec = (uint64_t)htonl(m.sec);
-    uint32_t net_nsec = (uint32_t)htonl(m.nsec);
-    uint16_t net_sz = (uint16_t)htons(m.sz);
+    uint64_t net_seqnum = (uint64_t)htonl(m->seqnum);
+    uint64_t net_sec = (uint64_t)htonl(m->sec);
+    uint32_t net_nsec = (uint32_t)htonl(m->nsec);
+    uint16_t net_sz = (uint16_t)htons(m->sz);
     memcpy(netbuf, &net_seqnum, 8);
     memcpy(netbuf+8, &net_sec, 8);
     memcpy(netbuf+16, &net_nsec, 4);
     memcpy(netbuf+20, &net_sz, 2);
-    memcpy(netbuf+22, m.buf, m.sz);
-    memcpy(netbuf+22+m.sz, m.md5, 16);
+    memcpy(netbuf+22, m->buf, m->sz);
+    memcpy(netbuf+22+m->sz, m->md5, 16);
 
     // Send frame header
     safe_send(sockfd, netbuf, 22, addr);
 
     // Send frame
-    safe_send(sockfd, netbuf+22, m.sz+16, addr);
+    safe_send(sockfd, netbuf+22, m->sz+16, addr);
 }
 
 // Send ack

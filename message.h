@@ -23,13 +23,13 @@ typedef struct AckMessage {
 
 Message make_message(char*, uint64_t);
 AckMessage make_ack(uint64_t);
-void send_message(Message, int, void*);
+void send_message(Message*, int, void*);
 void send_ack(AckMessage*, int, struct sockaddr_in*);
 void recv_message(Message*, int, struct sockaddr_in*);
 void recv_ack(AckMessage*, int, void*);
-void get_msg_md5(Message *msg, char *md5);
-void get_ack_md5(AckMessage *ackmsg, char *md5);
-bool check_msg_md5(Message *msg);
-bool check_ack_md5(AckMessage *msg);
+void get_msg_md5(Message*, char*);
+void get_ack_md5(AckMessage*, char*);
+bool check_msg_md5(Message*);
+bool check_ack_md5(AckMessage*);
 
 #endif
