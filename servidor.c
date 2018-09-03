@@ -12,6 +12,7 @@
 #include <openssl/md5.h>
 #include "utils.h"
 #include "message.h"
+#include "slidingwindow.h"
 #define DEBUG true
 #define INADDR "127.0.0.1"
 #define MAX_PENDING_CONNS 10
@@ -19,62 +20,6 @@
 #define CLIENT_TIMEOUT_USECS 0
 #define MAXLINE 65536
 #define addr_cmp(a,b) (((a).sin_addr.s_addr == (b).sin_addr.s_addr) && ((a).sin_port == (b).sin_port))
-
-// Sliding Window
-typedef struct SlidingWindowElem {
-    Message msg;
-    struct SlidingWindowElem *next;
-} SlidingWindowElem;
-
-typedef struct SlidingWindow {
-    struct SlidingWindowElem *first;
-    struct SlidingWindowElem *last;
-    uint64_t count;
-    uint64_t width;
-} SlidingWindow;
-
-SlidingWindow *make_sliding_window(uint64_t width) {
-    SlidingWindow *sw = (SlidingWindow*)malloc(sizeof(SlidingWindow));
-    sw->first = sw->last = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
-    sw->count = 0;
-    sw->width = width;
-
-    return sw;
-}
-
-void sliding_window_insert(SlidingWindow *sw, Message m) {
-    SlidingWindowElem *swe = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
-    SlidingWindowElem *aux;
-
-    swe->msg = m;
-    swe->next = NULL;
-
-    aux = sw->last;
-    sw->last = aux->next = swe;
-
-    if (sw->count == sw->width) {
-        aux = sw->first;
-        sw->first = aux->next;
-        free(aux);
-    } else {
-        sw->count++;
-    }
-}
-
-void free_sliding_window(SlidingWindow *sw) {
-    if (sw->first != NULL) {
-        SlidingWindowElem *aux = sw->first,
-                          *ph;
-        while (aux != NULL) {
-            ph = aux->next;
-            free(aux->msg.buf);
-            free(aux);
-            aux = ph;
-        }
-    }
-
-    free(sw);
-}
 
 // Client list
 typedef struct Client {

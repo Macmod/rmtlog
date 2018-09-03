@@ -8,69 +8,10 @@
 #include <string.h>
 #include <limits.h>
 #include <time.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include "utils.h"
 #include "message.h"
+#include "slidingwindow.h"
 #define DEBUG true
-
-// Sliding Window
-typedef struct SlidingWindowElem {
-    Message msg;
-    timer_t timer;
-    struct SlidingWindowElem *next;
-} SlidingWindowElem;
-
-typedef struct SlidingWindow {
-    struct SlidingWindowElem *first;
-    struct SlidingWindowElem *last;
-    uint64_t count;
-    uint64_t width;
-} SlidingWindow;
-
-SlidingWindow *make_sliding_window(uint64_t width) {
-    SlidingWindow *sw = (SlidingWindow*)malloc(sizeof(SlidingWindow));
-    sw->first = sw->last = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
-    sw->count = 0;
-    sw->width = width;
-
-    return sw;
-}
-
-void sliding_window_insert(SlidingWindow *sw, Message m) {
-    SlidingWindowElem *swe = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
-    SlidingWindowElem *aux;
-
-    swe->msg = m;
-    swe->timer = NULL;
-    swe->next = NULL;
-
-    aux = sw->last;
-    sw->last = aux->next = swe;
-
-    if (sw->count == sw->width) {
-        aux = sw->first;
-        sw->first = aux->next;
-        free(aux);
-    } else {
-        sw->count++;
-    }
-}
-
-void free_sliding_window(SlidingWindow *sw) {
-    if (sw->first == NULL) {
-        free(sw);
-        return;
-    }
-
-    SlidingWindowElem *aux = sw->first,
-                      *ph;
-    while (aux != NULL) {
-        ph = aux->next;
-        free(aux);
-        aux = ph;
-    }
-}
 
 // Ack timeout
 void ack_timeout(union sigval arg) {
