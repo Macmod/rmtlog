@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "slidingwindow.h"
+#include "message.h"
+#include "ack.h"
 
 SlidingWindow *make_sliding_window(uint64_t width) {
     SlidingWindow *sw = (SlidingWindow*)malloc(sizeof(SlidingWindow));
-    sw->first = sw->last = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
+    sw->first = sw->last = NULL;
     sw->count = 0;
     sw->width = width;
 
@@ -19,12 +21,18 @@ void sliding_window_insert(SlidingWindow *sw, Message m) {
     swe->next = NULL;
     swe->acked = false;
 
+    if (sw->first == NULL) {
+        sw->first = sw->last = swe;
+        return;
+    }
+
     aux = sw->last;
     sw->last = aux->next = swe;
 
     if (sw->count == sw->width) {
         aux = sw->first;
         sw->first = aux->next;
+        free_message(&aux->msg);
         free(aux);
     } else {
         sw->count++;
@@ -37,7 +45,7 @@ void free_sliding_window(SlidingWindow *sw) {
                           *ph;
         while (aux != NULL) {
             ph = aux->next;
-            free(aux->msg.buf);
+            free_message(&aux->msg);
             free(aux);
             aux = ph;
         }

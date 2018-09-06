@@ -24,7 +24,8 @@
 typedef struct Client {
     struct sockaddr_in addr_id;
 
-    SlidingWindow *sw;
+    uint64_t nfe;
+    uint64_t width;
     struct Client *next;
 
     timer_t timer;
@@ -72,8 +73,8 @@ void remove_client(ClientList *cl, struct sockaddr_in addr) {
         if (addr_cmp(aux->addr_id, addr)) {
             if (prev != NULL)
                 prev->next = aux->next;
-            free_sliding_window(aux->sw);
             free(aux);
+            return;
         }
 
         prev = aux;
@@ -84,8 +85,9 @@ void remove_client(ClientList *cl, struct sockaddr_in addr) {
 Client *insert_client(ClientList *cl, struct sockaddr_in addr, uint64_t width) {
     Client *c = (Client*)malloc(sizeof(Client));
     c->addr_id = addr;
-    c->sw = make_sliding_window(width);
     c->timer = NULL;
+    c->nfe = 0;
+    c->width = width;
 
     c->next = NULL;
     if (cl->last == NULL) {
@@ -253,7 +255,7 @@ int main(int argc, char *argv[]) {
         recv_message(&m, sockfd, &addr);
 
 #if DEBUG
-        printf("--- %s:%u\n", inet_ntoa(addr.sin_addr), addr.sin_port);
+        printf("--- %s:%u (seqnum=%u, len=%u)\n", inet_ntoa(addr.sin_addr), addr.sin_port, m.seqnum, m.sz);
 #endif
         if (!find_client(&clist, addr, &cptr)) {
 #ifdef DEBUG
@@ -261,10 +263,14 @@ int main(int argc, char *argv[]) {
 #endif
             cptr = insert_client(&clist, addr, wrx);
         } else {
+            cptr->nfe++;
 #ifdef DEBUG
             printf("--- Existing client\n");
 #endif
         }
+
+        if (m.seqnum < cptr->nfe || m.seqnum > cptr->nfe+cptr->width)
+            continue;
 
         if (check_msg_md5(&m)) {
 #ifdef DEBUG

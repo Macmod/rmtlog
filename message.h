@@ -31,5 +31,6 @@ void get_msg_md5(Message*, char*);
 void get_ack_md5(AckMessage*, char*);
 bool check_msg_md5(Message*);
 bool check_ack_md5(AckMessage*);
+void free_message(Message *m);
 
 #endif

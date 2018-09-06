@@ -13,14 +13,16 @@
 Message make_message(char *buf, uint64_t seqnum) {
     Message m;
     struct timespec ts;
-    char *membuf = malloc(MAXLINE*sizeof(buf));
+    size_t sz = strlen(buf);
+    char *membuf = malloc(sz*sizeof(buf));
+    memcpy(membuf, buf, sz);
 
     clock_gettime(CLOCK_REALTIME, &ts);
 
     m.seqnum = seqnum;
     m.sec = ts.tv_sec;
     m.nsec = ts.tv_nsec;
-    m.sz = strlen(buf);
+    m.sz = sz;
     m.buf = membuf;
     get_msg_md5(&m, m.md5);
 
@@ -101,7 +103,7 @@ void recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
     printf("[!] Message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
 #endif
 
-    m->buf = (char*)malloc(m->sz);
+    m->buf = (char*)malloc(m->sz*sizeof(char));
     memcpy(m->buf, netbuf+22, m->sz);
     memcpy(m->md5, netbuf+22+m->sz, 16);
 }
@@ -147,4 +149,10 @@ bool check_ack_md5(AckMessage *msg) {
     get_ack_md5(msg, md5);
 
     return memcmp(msg->md5, md5, 16) == 0;
+}
+
+// Memory
+void free_message(Message *m) {
+    if (m->buf != NULL)
+        free(m->buf);
 }

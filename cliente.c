@@ -11,86 +11,8 @@
 #include "utils.h"
 #include "message.h"
 #include "slidingwindow.h"
+#include "ack.h"
 #define DEBUG true
-
-// Ack timeout
-typedef struct AckTimeoutMsg {
-    int sockfd;
-    SlidingWindowElem *swe;
-    uint64_t tout;
-    struct sockaddr_in *addr;
-} AckTimeoutMsg;
-
-// Unset ack reception timeout
-void unset_ack_timeout(SlidingWindowElem *swe) {
-    if (swe->timer == NULL)
-        return;
-
-    int status;
-    struct itimerspec ts;
-
-    ts.it_value.tv_sec = 0;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    status = timer_settime(swe->timer, 0, &ts, 0);
-    if (status == -1)
-        logerr("Timer disarming error");
-}
-
-// Setup ack reception timeout
-void ack_timeout(union sigval);
-void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
-    AckTimeoutMsg *atm = malloc(sizeof(AckTimeoutMsg));
-
-    timer_t timer_id;
-    int status;
-    struct itimerspec ts;
-    struct sigevent se;
-
-    se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)atm;
-    se.sigev_notify_function = ack_timeout;
-    se.sigev_notify_attributes = NULL;
-
-    ts.it_value.tv_sec = tout;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    status = timer_create(CLOCK_REALTIME, &se, &timer_id);
-    if (status == -1)
-        logerr("Timer creation error");
-
-    status = timer_settime(timer_id, 0, &ts, 0);
-    if (status == -1)
-        logerr("Timer arming error");
-
-    swe->timer = timer_id;
-}
-
-void ack_timeout(union sigval arg) {
-    AckTimeoutMsg *atm = arg.sival_ptr;
-
-    SlidingWindowElem *swe = atm->swe;
-    int sockfd = atm->sockfd;
-    uint64_t tout = atm->tout;
-    struct sockaddr_in *addr = atm->addr;
-    Message *msg = &swe->msg;
-
-#ifdef DEBUG
-    printf("[!] Ack for %u timed out! Retransmitting...\n", msg->seqnum);
-#endif
-
-    send_message(msg, sockfd, addr);
-#ifdef DEBUG
-    printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
-#endif
-
-    set_ack_timeout(swe, tout);
-    free(atm);
-}
 
 // Client handler
 void client_handler(int sockfd, FILE *fin, void *server_addr,
@@ -102,7 +24,7 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
     Message m;
     AckMessage ack;
 
-    uint64_t seqnum;
+    uint64_t seqnum = 0;
 
 #ifdef DEBUG
     printf("[!] Sending file...\n");
@@ -125,12 +47,12 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 
         seqnum++;
 
-        // Block until ack of first element
+        // Block until ack of first element when window full
         if (window->count == window->width) {
-            while (!window->first->next->acked) {
+            while (!window->first->acked) {
 #ifdef DEBUG
                 printf("[!] Window waiting for Ack with seqnum=%u\n",
-                       window->first->next->msg.seqnum);
+                       window->first->msg.seqnum);
 #endif
                 recv_ack(&ack, sockfd, server_addr);
 #ifdef DEBUG
@@ -140,8 +62,8 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 #ifdef DEBUG
                     printf("--- MD5: OK\n");
 #endif
-                    if (ack.seqnum == window->first->next->msg.seqnum)
-                        window->first->next->acked = true;
+                    printf("setting ack flag for ack.seqnum %u", ack.seqnum);
+                    set_ack_flag(ack.seqnum, window);
                 } else {
 #ifdef DEBUG
                     printf("--- MD5: CORRUPT\n");
