@@ -6,7 +6,8 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <errno.h>
-#define MAXLINE 65536
+#define MAXLINE 65536U
+#define addr_cmp(a,b) (((a).sin_addr.s_addr == (b).sin_addr.s_addr) && ((a).sin_port == (b).sin_port))
 
 // Handle errors from errno
 static inline void logerr_thr(char *str) {

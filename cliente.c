@@ -17,11 +17,12 @@
 // Client handler
 void client_handler(int sockfd, FILE *fin, void *server_addr,
                     uint64_t width, uint64_t tout) {
-    char buf[MAXLINE];
 
+    char buf[MAXLINE];
     SlidingWindow *window = make_sliding_window(width);
 
     Message m;
+
     AckMessage ack;
 
     uint64_t seqnum = 0;
@@ -29,9 +30,11 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 #ifdef DEBUG
     printf("[!] Sending file...\n");
 #endif
-    while (fgets(buf, MAXLINE, fin)) {
-        // Make message
-        m = make_message(buf, seqnum);
+    while (fgets(buf, MAXLINE-1, fin)) {
+        alloc_message(&m, strlen(buf));
+
+        // Fill message
+        fill_message(&m, buf, seqnum);
 
         // Put message into sliding window
         sliding_window_insert(window, m);
@@ -43,6 +46,7 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 #endif
 
         // Set ack timeout
+        create_ack_timer(window->last);
         set_ack_timeout(window->last, tout);
 
         seqnum++;
@@ -62,7 +66,7 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 #ifdef DEBUG
                     printf("--- MD5: OK\n");
 #endif
-                    printf("setting ack flag for ack.seqnum %u", ack.seqnum);
+                    printf("setting ack flag for ack.seqnum %u\n", ack.seqnum);
                     set_ack_flag(ack.seqnum, window);
                 } else {
 #ifdef DEBUG

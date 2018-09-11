@@ -12,151 +12,13 @@
 #include "utils.h"
 #include "message.h"
 #include "slidingwindow.h"
+#include "clientlist.h"
 #define DEBUG true
 #define INADDR "127.0.0.1"
 #define MAX_PENDING_CONNS 10
-#define CLIENT_TIMEOUT_SECS 5
-#define CLIENT_TIMEOUT_USECS 0
-#define MAXLINE 65536
-#define addr_cmp(a,b) (((a).sin_addr.s_addr == (b).sin_addr.s_addr) && ((a).sin_port == (b).sin_port))
 
 // Client list
-typedef struct Client {
-    struct sockaddr_in addr_id;
-
-    uint64_t nfe;
-    uint64_t width;
-    struct Client *next;
-
-    timer_t timer;
-} Client;
-
-typedef struct ClientList {
-    struct Client *first;
-    struct Client *last;
-    uint16_t len;
-} ClientList;
-
-ClientList make_client_list() {
-    ClientList cl;
-    cl.first = cl.last = NULL;
-    cl.len = 0;
-
-    return cl;
-}
-
-// Client list
-// (global since I implement inactive client
-//  timeouts using threads)
 ClientList clist;
-
-bool find_client(ClientList *cl, struct sockaddr_in addr,
-                   Client **c) {
-    Client *aux = cl->first;
-    while (aux != NULL) {
-        if (addr_cmp(aux->addr_id, addr)) {
-            *c = aux;
-            return true;
-        }
-
-        aux = aux->next;
-    }
-
-    return false;
-}
-
-void remove_client(ClientList *cl, struct sockaddr_in addr) {
-    Client *aux = cl->first,
-           *prev = NULL;
-
-    while (aux != NULL) {
-        if (addr_cmp(aux->addr_id, addr)) {
-            if (prev != NULL)
-                prev->next = aux->next;
-            free(aux);
-            return;
-        }
-
-        prev = aux;
-        aux = aux->next;
-    }
-}
-
-Client *insert_client(ClientList *cl, struct sockaddr_in addr, uint64_t width) {
-    Client *c = (Client*)malloc(sizeof(Client));
-    c->addr_id = addr;
-    c->timer = NULL;
-    c->nfe = 0;
-    c->width = width;
-
-    c->next = NULL;
-    if (cl->last == NULL) {
-        cl->first = c;
-    } else {
-        cl->last->next = c;
-    }
-
-    cl->last = c;
-    return c;
-}
-
-// Client timeout
-void client_timeout(union sigval arg) {
-    Client *c = arg.sival_ptr;
-
-#ifdef DEBUG
-    printf("Client %s:%u timed out!\n",
-           inet_ntoa(c->addr_id.sin_addr), c->addr_id.sin_port);
-#endif
-
-    remove_client(&clist, c->addr_id);
-}
-
-// Unset client deletion timeout
-void unset_client_timeout(Client *client) {
-    if (client->timer == NULL)
-        return;
-
-    int status;
-    struct itimerspec ts;
-
-    ts.it_value.tv_sec = 0;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    status = timer_settime(client->timer, 0, &ts, 0);
-    if (status == -1)
-        logerr("Timer disarming error");
-}
-
-// Setup client deletion timeout
-void set_client_timeout(Client *client) {
-    timer_t timer_id;
-    int status;
-    struct itimerspec ts;
-    struct sigevent se;
-
-    se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)client;
-    se.sigev_notify_function = client_timeout;
-    se.sigev_notify_attributes = NULL;
-
-    ts.it_value.tv_sec = CLIENT_TIMEOUT_SECS;
-    ts.it_value.tv_nsec = CLIENT_TIMEOUT_USECS;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    status = timer_create(CLOCK_REALTIME, &se, &timer_id);
-    if (status == -1)
-        logerr("Timer creation error");
-
-    status = timer_settime(timer_id, 0, &ts, 0);
-    if (status == -1)
-        logerr("Timer arming error");
-
-    client->timer = timer_id;
-}
 
 // Handle client message
 void *message_handler(int sockfd, Message m, Client *client, FILE *fin) {
@@ -170,10 +32,10 @@ void *message_handler(int sockfd, Message m, Client *client, FILE *fin) {
     fwrite(m.buf, 1, m.sz, fin);
 
     // Reply ack
-    am = make_ack(m.seqnum);
+    fill_ack(&am, m.seqnum);
     send_ack(&am, sockfd, &client->addr_id);
 
-    // Set client timeout
+    // Reset client timeout
     set_client_timeout(client);
 }
 
@@ -247,7 +109,12 @@ int main(int argc, char *argv[]) {
     clist = make_client_list();
 
     // Message placeholder
+    char m_buf[MAXLINE];
     Message m;
+
+    // Put buffer on the stack
+    // since we only need to keep one message per log line.
+    m.buf = m_buf;
 
     // Spawn one handler thread for each client
     while (1) {

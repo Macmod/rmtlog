@@ -9,39 +9,37 @@
 #include "utils.h"
 #include "message.h"
 
-// Create message
-Message make_message(char *buf, uint64_t seqnum) {
-    Message m;
-    struct timespec ts;
-    size_t sz = strlen(buf);
-    char *membuf = malloc(sz*sizeof(buf));
-    memcpy(membuf, buf, sz);
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-
-    m.seqnum = seqnum;
-    m.sec = ts.tv_sec;
-    m.nsec = ts.tv_nsec;
-    m.sz = sz;
-    m.buf = membuf;
-    get_msg_md5(&m, m.md5);
-
-    return m;
+// Alloc space for message
+void alloc_message(Message *m, size_t size) {
+    m->buf = (char*)malloc(size*sizeof(char));
 }
 
-// Create ack
-AckMessage make_ack(uint64_t seqnum) {
+// Fill message
+void fill_message(Message *m, char *buf, uint64_t seqnum) {
     struct timespec ts;
-    AckMessage am;
+    size_t sz = strlen(buf);
+    memcpy(m->buf, buf, sz);
 
     clock_gettime(CLOCK_REALTIME, &ts);
-    am.seqnum = seqnum;
-    am.sec = ts.tv_sec;
-    am.nsec = ts.tv_nsec;
-    get_ack_md5(&am, am.md5);
 
-    return am;
+    m->seqnum = seqnum;
+    m->sec = ts.tv_sec;
+    m->nsec = ts.tv_nsec;
+    m->sz = sz;
 
+    get_msg_md5(m, m->md5);
+}
+
+// Fill ack
+void fill_ack(AckMessage *am, uint64_t seqnum) {
+    struct timespec ts;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    am->seqnum = seqnum;
+    am->sec = ts.tv_sec;
+    am->nsec = ts.tv_nsec;
+    get_ack_md5(am, am->md5);
 }
 
 // Send message
@@ -103,7 +101,6 @@ void recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
     printf("[!] Message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
 #endif
 
-    m->buf = (char*)malloc(m->sz*sizeof(char));
     memcpy(m->buf, netbuf+22, m->sz);
     memcpy(m->md5, netbuf+22+m->sz, 16);
 }

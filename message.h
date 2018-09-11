@@ -21,8 +21,9 @@ typedef struct AckMessage {
     char md5[16];
 } __attribute__((packed)) AckMessage;
 
-Message make_message(char*, uint64_t);
-AckMessage make_ack(uint64_t);
+void alloc_message(Message*, size_t);
+void fill_message(Message*, char*, uint64_t);
+void fill_ack(AckMessage*, uint64_t);
 void send_message(Message*, int, void*);
 void send_ack(AckMessage*, int, struct sockaddr_in*);
 void recv_message(Message*, int, struct sockaddr_in*);
