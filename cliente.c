@@ -12,7 +12,6 @@
 #include "message.h"
 #include "slidingwindow.h"
 #include "ack.h"
-#define DEBUG true
 
 // Client handler
 void client_handler(int sockfd, FILE *fin, void *server_addr,

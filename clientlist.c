@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "utils.h"
 #include "clientlist.h"
 
 // Create client timer

@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <errno.h>
+#define DEBUG true
 #define MAXLINE 65536U
 #define addr_cmp(a,b) (((a).sin_addr.s_addr == (b).sin_addr.s_addr) && ((a).sin_port == (b).sin_port))
 

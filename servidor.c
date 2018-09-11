@@ -13,7 +13,6 @@
 #include "message.h"
 #include "slidingwindow.h"
 #include "clientlist.h"
-#define DEBUG true
 #define INADDR "127.0.0.1"
 #define MAX_PENDING_CONNS 10
 
