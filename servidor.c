@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     fout = fopen(argv[1], "w");
 
     if (!fout) {
-        fprintf(stderr, "Could not open output file '%s'.", argv[1]);
+        fprintf(stderr, "Could not open output file '%s'.\n", argv[1]);
         exit(EXIT_FAILURE);
     }
 
