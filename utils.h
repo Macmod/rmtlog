@@ -27,5 +27,6 @@ bool safe_read_long(char*, unsigned long*);
 bool safe_read_double(char*, double*);
 bool safe_read_uint16(char*, uint16_t*);
 bool safe_read_uint64(char*, uint64_t*);
+double timespec_diff(struct timespec*, struct timespec*);
 
 #endif

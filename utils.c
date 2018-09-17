@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <time.h>
 #include "utils.h"
 
 // Safe send
@@ -102,4 +103,20 @@ bool safe_read_uint64(char *str, uint64_t *num) {
 
     *num = (uint64_t)lnum;
     return true;
+}
+
+double timespec_diff(struct timespec *start, struct timespec *end) {
+    struct timespec diff;
+    double result;
+
+    if ((end->tv_nsec - start->tv_nsec) < 0) {
+        diff.tv_sec = end->tv_sec - start->tv_sec - 1;
+        diff.tv_nsec = end->tv_nsec - start->tv_nsec + 1000000000;
+    } else {
+        diff.tv_sec = end->tv_sec - start->tv_sec;
+        diff.tv_nsec = end->tv_nsec - start->tv_nsec;
+    }
+
+    result = diff.tv_sec + diff.tv_nsec/1000000000;
+    return result;
 }

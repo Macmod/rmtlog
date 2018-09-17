@@ -10,12 +10,24 @@
 #include <time.h>
 #include "utils.h"
 #include "message.h"
-#include "slidingwindow.h"
+#include "clientsw.h"
 #include "ack.h"
+#define MESSAGE_CORRUPTION true
+
+int sockfd;
+uint16_t port;
+size_t nsent = 0;
+
+// Execution log structure
+typedef struct ExecutionLog {
+    size_t nmsg;
+    size_t nerror;
+} ExecutionLog;
 
 // Client handler
-void client_handler(int sockfd, FILE *fin, void *server_addr,
-                    uint64_t width, uint64_t tout) {
+ExecutionLog client_handler(FILE *fin, void *server_addr,
+                            uint64_t width, uint64_t tout, double perr) {
+    ExecutionLog xl;
 
     char buf[MAXLINE];
     SlidingWindow *window = make_sliding_window(width);
@@ -26,10 +38,14 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
 
     uint64_t seqnum = 0;
 
-#ifdef DEBUG
+#if DEBUG
     printf("[!] Sending file...\n");
 #endif
     while (fgets(buf, MAXLINE-1, fin)) {
+        // Increment message count
+        xl.nmsg += 1;
+
+        // Allocate space for message
         alloc_message(&m, strlen(buf));
 
         // Fill message
@@ -38,14 +54,22 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
         // Put message into sliding window
         sliding_window_insert(window, m);
 
-        // Send message
-        send_message(&m, sockfd, server_addr);
-#ifdef DEBUG
-        printf("[!] Sent message (seqnum=%u, len=%u)\n", m.seqnum, m.sz);
+#if MESSAGE_CORRUPTION
+        // Corrupt some md5s
+        if ((double)rand()/RAND_MAX < perr) {
+#if DEBUG
+            printf("--- Corruption happened to message.\n");
+#endif
+            m.md5[15] += 1;
+            xl.nerror += 1;
+        }
 #endif
 
+        // Send message
+        send_message(&m, sockfd, server_addr);
+
         // Set ack timeout
-        create_ack_timer(window->last);
+        create_ack_timer(window->last, sockfd, server_addr, tout);
         set_ack_timeout(window->last, tout);
 
         seqnum++;
@@ -53,22 +77,21 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
         // Block until ack of first element when window full
         if (window->count == window->width) {
             while (!window->first->acked) {
-#ifdef DEBUG
+#if DEBUG
                 printf("[!] Window waiting for Ack with seqnum=%u\n",
                        window->first->msg.seqnum);
 #endif
                 recv_ack(&ack, sockfd, server_addr);
-#ifdef DEBUG
-                printf("[!] Ack (seqnum=%u)\n", ack.seqnum);
+#if DEBUG
+                printf("[!] Ack %u\n", ack.seqnum);
 #endif
                 if (check_ack_md5(&ack)) {
-#ifdef DEBUG
+#if DEBUG
                     printf("--- MD5: OK\n");
 #endif
-                    printf("setting ack flag for ack.seqnum %u\n", ack.seqnum);
                     set_ack_flag(ack.seqnum, window);
                 } else {
-#ifdef DEBUG
+#if DEBUG
                     printf("--- MD5: CORRUPT\n");
 #endif
                 }
@@ -77,11 +100,24 @@ void client_handler(int sockfd, FILE *fin, void *server_addr,
     }
 
     free_sliding_window(window);
+
+    return xl;
 }
 
 int main(int argc, char *argv[]) {
+    struct in_addr server_addr;
+    struct sockaddr_in client;
+    struct timespec start_time, end_time;
+    double total_time;
+
+    // Measure start time
+    clock_gettime(CLOCK_REALTIME, &start_time);
+
     // Disable stdout buffering
     setvbuf(stdout, NULL, _IONBF, 0);
+
+    // Seed PRNG poorly with time(NULL)
+    srand(time(NULL));
 
     // Help
     if (argc < 6) {
@@ -90,11 +126,6 @@ int main(int argc, char *argv[]) {
                 argv[0]);
         exit(EXIT_FAILURE);
     }
-
-    int sockfd;
-    uint16_t port;
-    struct in_addr server_addr;
-    struct sockaddr_in client;
 
     // Parse args
     FILE *fin = fopen(argv[1], "r");
@@ -141,16 +172,23 @@ int main(int argc, char *argv[]) {
     if (sockfd == -1)
         logerr("Socket error");
 
-    // Client handler
-    client_handler(sockfd, fin, &server, wtx, tout);
-
-    /* fprintf("%d %d %d %.3fs", nmsg, nerror, time); */
+    // Run client handler
+    ExecutionLog xl = client_handler(fin, &server, wtx, tout, perr);
 
     // Close connection
     close(sockfd);
 
     // Close file
     fclose(fin);
+
+    // Measure end time
+    clock_gettime(CLOCK_REALTIME, &end_time);
+
+    // Get total time
+    total_time = timespec_diff(&start_time, &end_time);
+
+    // Client output
+    printf("%zu %zu %zu %.3fs", xl.nmsg, nsent, xl.nerror, total_time);
 
     return 0;
 }

@@ -7,16 +7,16 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include "serversw.h"
 #include "utils.h"
-#define CLIENT_TIMEOUT_SECS 5
+#define CLIENT_TIMEOUT_SECS 30
 #define CLIENT_TIMEOUT_USECS 0
 
 // Client list
 typedef struct Client {
     struct sockaddr_in addr_id;
 
-    uint64_t nfe;
-    uint64_t width;
+    struct SlidingWindow *sw;
     struct Client *next;
 
     timer_t timer;
@@ -33,6 +33,8 @@ typedef struct ClientList {
 //  timeouts using threads)
 extern ClientList clist;
 
+void init_client_lock();
+void destroy_client_lock();
 void create_client_timer(Client*);
 void set_client_timeout(Client*);
 void unset_client_timeout(Client*);

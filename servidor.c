@@ -11,36 +11,72 @@
 #include <arpa/inet.h>
 #include "utils.h"
 #include "message.h"
-#include "slidingwindow.h"
+#include "serversw.h"
 #include "clientlist.h"
 #define INADDR "127.0.0.1"
 #define MAX_PENDING_CONNS 10
+#define ACK_CORRUPTION true
 
 // Client list
 ClientList clist;
+int sockfd;
+uint16_t port;
 
 // Handle client message
-void *message_handler(int sockfd, Message m, Client *client, FILE *fin) {
-    // Unset client timeout
-    unset_client_timeout(client);
-
+void message_handler(Message m, Client *client, FILE *fin, double perr) {
     // Ack placeholder
     AckMessage am;
 
-    // Write log
-    fwrite(m.buf, 1, m.sz, fin);
+    // Client sliding window
+    SlidingWindow *sw = client->sw;
+    uint64_t nfe = sw->first->msg.seqnum;
+    uint64_t lfa = sw->last->msg.seqnum;
+
+    if (m.seqnum < nfe) {
+#if DEBUG
+        printf("--- Old frame [< %u] received. Acknowledging again.\n", nfe);
+#endif
+    } else if (m.seqnum > lfa) {
+#if DEBUG
+        printf("--- Frame out of window [> %u]. Discarding.\n", lfa);
+#endif
+        return;
+    } else {
+#if DEBUG
+        printf("--- Inserting to window and acknowleding.\n");
+#endif
+        sliding_window_insert(sw, m);
+
+        // Write all okay messages in left of window to file and slide
+        while (sw->first != NULL && sw->first->msg.buf != NULL) {
+#if DEBUG
+            printf("--- Sliding window to [%u, %u]\n", nfe+1, lfa+1);
+#endif
+            fwrite(sw->first->msg.buf, 1, sw->first->msg.sz, fin);
+            sliding_window_slide(sw);
+        }
+    }
 
     // Reply ack
     fill_ack(&am, m.seqnum);
+#if ACK_CORRUPTION
+    // Corrupt some md5s
+    if ((double)rand()/RAND_MAX < perr) {
+#if DEBUG
+        printf("--- Corruption happened to ack.\n");
+#endif
+        am.md5[15] += 1;
+    }
+#endif
     send_ack(&am, sockfd, &client->addr_id);
-
-    // Reset client timeout
-    set_client_timeout(client);
 }
 
 int main(int argc, char *argv[]) {
     // Disable stdout buffering
     setvbuf(stdout, NULL, _IONBF, 0);
+
+    // Seed PRNG poorly with time(NULL)
+    srand(time(NULL));
 
     // Help
     if (argc < 5) {
@@ -48,13 +84,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    int sockfd;
-    uint16_t port;
-    struct in_addr server_addr;
-    struct sockaddr_in client;
-
     // Parse args
-    FILE *fin = fopen(argv[1], "a+");
+    FILE *fin = fopen(argv[1], "w");
     if (!fin) {
         fprintf(stderr, "Could not open output file '%s'.", argv[1]);
         exit(EXIT_FAILURE);
@@ -78,6 +109,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Setup listener address
+    struct in_addr server_addr;
     inet_pton(AF_INET, INADDR, &server_addr);
 
     struct sockaddr_in server = {
@@ -102,9 +134,10 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in addr;
 
     // Client pointer placeholder
-    Client *cptr;
+    Client *client;
 
     // Setup client list
+    init_client_lock();
     clist = make_client_list();
 
     // Message placeholder
@@ -115,39 +148,42 @@ int main(int argc, char *argv[]) {
     // since we only need to keep one message per log line.
     m.buf = m_buf;
 
-    // Spawn one handler thread for each client
+    // Handle messages from clients
     while (1) {
         // Receive message
         recv_message(&m, sockfd, &addr);
 
 #if DEBUG
-        printf("--- %s:%u (seqnum=%u, len=%u)\n", inet_ntoa(addr.sin_addr), addr.sin_port, m.seqnum, m.sz);
+        printf("--- %s:%u (sec=%u, nsec=%u)\n", inet_ntoa(addr.sin_addr),
+               addr.sin_port, m.sec, m.nsec);
 #endif
-        if (!find_client(&clist, addr, &cptr)) {
-#ifdef DEBUG
+        if (!find_client(&clist, addr, &client)) {
+#if DEBUG
             printf("--- New client\n");
 #endif
-            cptr = insert_client(&clist, addr, wrx);
+            client = insert_client(&clist, addr, wrx);
         } else {
-            cptr->nfe++;
-#ifdef DEBUG
+#if DEBUG
             printf("--- Existing client\n");
 #endif
         }
 
-        if (m.seqnum < cptr->nfe || m.seqnum > cptr->nfe+cptr->width)
-            continue;
+        // Unset client timeout
+        /* unset_client_timeout(client); */
 
         if (check_msg_md5(&m)) {
-#ifdef DEBUG
+#if DEBUG
             printf("--- MD5: OK\n");
 #endif
-            message_handler(sockfd, m, cptr, fin);
+            message_handler(m, client, fin, perr);
         } else {
-#ifdef DEBUG
+#if DEBUG
             printf("--- MD5: CORRUPT\n");
 #endif
         }
+
+        // Reset client timeout
+        /* set_client_timeout(client); */
     }
 
     return 0;

@@ -9,6 +9,8 @@
 #include "utils.h"
 #include "message.h"
 
+extern size_t nsent;
+
 // Alloc space for message
 void alloc_message(Message *m, size_t size) {
     m->buf = (char*)malloc(size*sizeof(char));
@@ -44,6 +46,9 @@ void fill_ack(AckMessage *am, uint64_t seqnum) {
 
 // Send message
 void send_message(Message *m, int sockfd, void *addr) {
+#if DEBUG
+    printf("[!] Sent message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
+#endif
     char netbuf[MAXLINE+38];
 
     // Build frame
@@ -97,8 +102,8 @@ void recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
 
     // Get message
     safe_recv(sockfd, netbuf+22, m->sz+16, addr);
-#ifdef DEBUG
-    printf("[!] Message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
+#if DEBUG
+    printf("[!] Message %u (len=%u)\n", m->seqnum, m->sz);
 #endif
 
     memcpy(m->buf, netbuf+22, m->sz);

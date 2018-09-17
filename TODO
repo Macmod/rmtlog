@@ -1,7 +1,2 @@
-- Message corrupter
-- Fix leak in client_timeout
-- Handle timeouts
-    - Ack timeout [~]
-        - Add mutexes to client!
-- Sliding window client [?]
-- Sliding window server [x]
+- Check everything, especially mutexes & possible leaks.
+    - Fix everything!!!

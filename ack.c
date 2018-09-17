@@ -6,11 +6,18 @@
 #include "ack.h"
 
 // Create ack timer
-void create_ack_timer(SlidingWindowElem *swe) {
+void create_ack_timer(SlidingWindowElem *swe, int sockfd,
+                      struct sockaddr_in *addr, uint64_t tout) {
     int status;
     struct sigevent se;
     timer_t timer_id;
+
+    // Setup parameters to be sent to ack timeout handler
     AckTimeoutMsg *atm = malloc(sizeof(AckTimeoutMsg));
+    atm->swe = swe;
+    atm->sockfd = sockfd;
+    atm->addr = addr;
+    atm->tout = tout;
 
     se.sigev_notify = SIGEV_THREAD;
     se.sigev_value.sival_ptr = (void*)atm;
@@ -70,30 +77,14 @@ void ack_timeout(union sigval arg) {
     struct sockaddr_in *addr = atm->addr;
     Message *msg = &swe->msg;
 
-#ifdef DEBUG
+#if DEBUG
     printf("[!] Ack for %u timed out! Retransmitting...\n", msg->seqnum);
 #endif
 
     send_message(msg, sockfd, addr);
-#ifdef DEBUG
+#if DEBUG
     printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
 #endif
 
-    free(atm);
     set_ack_timeout(swe, tout);
-}
-
-// Set ack flag
-void set_ack_flag(uint64_t seqnum, SlidingWindow *sw) {
-    SlidingWindowElem *aux = sw->first;
-
-    while (aux != NULL) {
-        if (seqnum == aux->msg.seqnum) {
-            unset_ack_timeout(aux);
-            aux->acked = true;
-            return;
-        }
-
-        aux = aux->next;
-    }
 }

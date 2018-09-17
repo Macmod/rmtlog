@@ -1,9 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "slidingwindow.h"
+#include "clientsw.h"
 #include "message.h"
 #include "ack.h"
 
+// Sliding Window
 SlidingWindow *make_sliding_window(uint64_t width) {
     SlidingWindow *sw = (SlidingWindow*)malloc(sizeof(SlidingWindow));
     sw->first = sw->last = NULL;
@@ -52,4 +53,19 @@ void free_sliding_window(SlidingWindow *sw) {
     }
 
     free(sw);
+}
+
+// Set ack flag
+void set_ack_flag(uint64_t seqnum, SlidingWindow *sw) {
+    SlidingWindowElem *aux = sw->first;
+
+    while (aux != NULL) {
+        if (seqnum == aux->msg.seqnum) {
+            unset_ack_timeout(aux);
+            aux->acked = true;
+            return;
+        }
+
+        aux = aux->next;
+    }
 }
