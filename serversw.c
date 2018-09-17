@@ -13,7 +13,7 @@ SlidingWindow *make_sliding_window(uint64_t width) {
     Message void_msg = {0};
 
     for (uint64_t i = 0; i < width; i++) {
-        void_msg.seqnum = i;
+        void_msg.seqnum = i+1;
 
         swe = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
         swe->msg = void_msg;

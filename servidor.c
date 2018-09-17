@@ -57,6 +57,7 @@ void message_handler(Message m, Client *client, double perr) {
 #if DEBUG
             printf("--- Sliding window to [%u, %u]\n", nfe+1, lfa+1);
 #endif
+            fwrite(m.buf, sizeof(char), m.sz, fout);
             sliding_window_slide(sw);
         }
     }

@@ -61,6 +61,7 @@ void set_ack_flag(uint64_t seqnum, SlidingWindow *sw) {
 
     while (aux != NULL) {
         if (seqnum == aux->msg.seqnum) {
+            printf("unsetting ack timeout for seqnum %u (%d)\n", seqnum, aux->timer);
             unset_ack_timeout(aux);
             aux->acked = true;
             return;

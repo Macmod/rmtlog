@@ -37,7 +37,7 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
 
     AckMessage ack;
 
-    uint64_t seqnum = 0;
+    uint64_t seqnum = 1;
 
 #if DEBUG
     printf("[!] Sending file...\n");
@@ -101,7 +101,37 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
         }
     }
 
-    free_sliding_window(window);
+    // Receive acks for last window
+    // (no more lines to read, although still need to close window)
+    for (uint64_t i = 0; i < width+1; i++) {
+        while (!window->first->acked) {
+#if DEBUG
+            printf("[!] Window waiting for Ack with seqnum=%u\n",
+                   window->first->msg.seqnum);
+#endif
+            if (recv_ack(&ack, sockfd, server_addr)) {
+#if DEBUG
+                printf("--- MD5: OK\n");
+#endif
+                set_ack_flag(ack.seqnum, window);
+            } else {
+#if DEBUG
+                printf("--- MD5: CORRUPT\n");
+#endif
+            }
+        }
+
+        // Free last elements from sliding window
+        SlidingWindowElem *aux = window->first->next;
+
+        free_message(&window->first->msg);
+        free(window->first);
+
+        window->first = aux;
+    }
+
+    // Free sliding window
+    free(window);
 
     return xl;
 }
@@ -131,6 +161,9 @@ int main(int argc, char *argv[]) {
 
     // Parse args
     fin = fopen(argv[1], "r");
+
+    // Disable buffering in output file
+    setbuf(fin, NULL);
 
     char *ip_str = strtok(argv[2], ":");
     char *port_str = strtok(NULL, ":");
