@@ -949,8 +949,9 @@
 [   22.252419] IPv6: ADDRCONF(NETDEV_UP): enp4s0f2: link is not ready
 [   22.799374] openvswitch: Open vSwitch switching datapath
 [   26.743789] bbswitch: disabling discrete graphics
-[   32.902614] audit: type=1006 audit(1535381338.896:2): pid=530 uid=0 old-auid=4294967295 auid=666 tty=tty1 old-ses=4294967295 ses=1 res=1
-[   33.582515] audit: type=1006 audit(1535381339.576:3): pid=600 uid=0 old-auid=4294967295 auid=666 tty=(none) old-ses=4294967295 ses=2 res=1
+XULAMBS
+# [   32.902614] audit: type=1006 audit(1535381338.896:2): pid=530 uid=0 old-auid=4294967295 auid=666 tty=tty1 old-ses=4294967295 ses=1 res=1
+# [   33.582515] audit: type=1006 audit(1535381339.576:3): pid=600 uid=0 old-auid=4294967295 auid=666 tty=(none) old-ses=4294967295 ses=2 res=1
 [   62.636111] 8021q: 802.1Q VLAN Support v1.8
 [   62.732528] IPv6: ADDRCONF(NETDEV_UP): wlp3s0: link is not ready
 [   64.275439] wlp3s0: authenticate with 00:19:07:8d:1c:42

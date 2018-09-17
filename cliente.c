@@ -17,6 +17,7 @@
 int sockfd;
 uint16_t port;
 size_t nsent = 0;
+FILE *fin;
 
 // Execution log structure
 typedef struct ExecutionLog {
@@ -25,11 +26,11 @@ typedef struct ExecutionLog {
 } ExecutionLog;
 
 // Client handler
-ExecutionLog client_handler(FILE *fin, void *server_addr,
-                            uint64_t width, uint64_t tout, double perr) {
+ExecutionLog client_handler(void *server_addr, uint64_t width,
+                            uint64_t tout, double perr) {
     ExecutionLog xl;
 
-    char buf[MAXLINE];
+    char buf[MAXLN];
     SlidingWindow *window = make_sliding_window(width);
 
     Message m;
@@ -41,7 +42,12 @@ ExecutionLog client_handler(FILE *fin, void *server_addr,
 #if DEBUG
     printf("[!] Sending file...\n");
 #endif
-    while (fgets(buf, MAXLINE-1, fin)) {
+    while (fgets(buf, MAXLN, fin)) {
+        // Print log line
+#if !DEBUG
+        printf("%s", buf);
+#endif
+
         // Increment message count
         xl.nmsg += 1;
 
@@ -50,9 +56,6 @@ ExecutionLog client_handler(FILE *fin, void *server_addr,
 
         // Fill message
         fill_message(&m, buf, seqnum);
-
-        // Put message into sliding window
-        sliding_window_insert(window, m);
 
 #if MESSAGE_CORRUPTION
         // Corrupt some md5s
@@ -64,6 +67,9 @@ ExecutionLog client_handler(FILE *fin, void *server_addr,
             xl.nerror += 1;
         }
 #endif
+
+        // Put message into sliding window
+        sliding_window_insert(window, &m);
 
         // Send message
         send_message(&m, sockfd, server_addr);
@@ -81,11 +87,7 @@ ExecutionLog client_handler(FILE *fin, void *server_addr,
                 printf("[!] Window waiting for Ack with seqnum=%u\n",
                        window->first->msg.seqnum);
 #endif
-                recv_ack(&ack, sockfd, server_addr);
-#if DEBUG
-                printf("[!] Ack %u\n", ack.seqnum);
-#endif
-                if (check_ack_md5(&ack)) {
+                if (recv_ack(&ack, sockfd, server_addr)) {
 #if DEBUG
                     printf("--- MD5: OK\n");
 #endif
@@ -128,7 +130,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse args
-    FILE *fin = fopen(argv[1], "r");
+    fin = fopen(argv[1], "r");
 
     char *ip_str = strtok(argv[2], ":");
     char *port_str = strtok(NULL, ":");
@@ -173,7 +175,7 @@ int main(int argc, char *argv[]) {
         logerr("Socket error");
 
     // Run client handler
-    ExecutionLog xl = client_handler(fin, &server, wtx, tout, perr);
+    ExecutionLog xl = client_handler(&server, wtx, tout, perr);
 
     // Close connection
     close(sockfd);
@@ -188,7 +190,7 @@ int main(int argc, char *argv[]) {
     total_time = timespec_diff(&start_time, &end_time);
 
     // Client output
-    printf("%zu %zu %zu %.3fs", xl.nmsg, nsent, xl.nerror, total_time);
+    /* printf("%zu %zu %zu %.3fs", xl.nmsg, nsent, xl.nerror, total_time); */
 
     return 0;
 }

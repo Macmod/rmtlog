@@ -12,10 +12,6 @@ void init_client_lock() {
     pthread_mutex_init(&lock, NULL);
 }
 
-void destroy_client_lock() {
-    pthread_mutex_destroy(&lock);
-}
-
 // Create client timer
 void create_client_timer(Client *client) {
     struct sigevent se;

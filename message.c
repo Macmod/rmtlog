@@ -28,8 +28,6 @@ void fill_message(Message *m, char *buf, uint64_t seqnum) {
     m->sec = ts.tv_sec;
     m->nsec = ts.tv_nsec;
     m->sz = sz;
-
-    get_msg_md5(m, m->md5);
 }
 
 // Fill ack
@@ -41,15 +39,11 @@ void fill_ack(AckMessage *am, uint64_t seqnum) {
     am->seqnum = seqnum;
     am->sec = ts.tv_sec;
     am->nsec = ts.tv_nsec;
-    get_ack_md5(am, am->md5);
 }
 
 // Send message
 void send_message(Message *m, int sockfd, void *addr) {
-#if DEBUG
-    printf("[!] Sent message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
-#endif
-    char netbuf[MAXLINE+38];
+    char netbuf[MAXLN+38];
 
     // Build frame
     uint64_t net_seqnum = (uint64_t)htonl(m->seqnum);
@@ -61,13 +55,26 @@ void send_message(Message *m, int sockfd, void *addr) {
     memcpy(netbuf+16, &net_nsec, 4);
     memcpy(netbuf+20, &net_sz, 2);
     memcpy(netbuf+22, m->buf, m->sz);
-    memcpy(netbuf+22+m->sz, m->md5, 16);
 
     // Send frame header
     safe_send(sockfd, netbuf, 22, addr);
+#if DEBUG
+    printf("[!] Sent header (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
+#endif
 
     // Send frame
-    safe_send(sockfd, netbuf+22, m->sz+16, addr);
+    safe_send(sockfd, m->buf, m->sz, addr);
+#if DEBUG
+    printf("[!] Sent message\n");
+#endif
+
+    get_md5(netbuf, 22+m->sz, m->md5);
+    memcpy(netbuf+22+m->sz, m->md5, 16);
+
+    safe_send(sockfd, m->md5, 16, addr);
+#if DEBUG
+    printf("[!] Sent MD5\n");
+#endif
 }
 
 // Send ack
@@ -75,18 +82,23 @@ void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr) {
     char netbuf[36];
 
     // Populate struct
-    memcpy(netbuf, &am->seqnum, 8);
-    memcpy(netbuf+8, &am->sec, 8);
-    memcpy(netbuf+16, &am->nsec, 4);
-    memcpy(netbuf+20, &am->md5, 16);
+    uint64_t net_seqnum = (uint64_t)htonl(am->seqnum);
+    uint64_t net_sec = (uint64_t)htonl(am->sec);
+    uint32_t net_nsec = (uint32_t)htonl(am->nsec);
+    memcpy(netbuf, &net_seqnum, 8);
+    memcpy(netbuf+8, &net_sec, 8);
+    memcpy(netbuf+16, &net_nsec, 4);
+
+    get_md5(netbuf, 20, am->md5);
+    memcpy(netbuf+20, am->md5, 16);
 
     // Send ack
     safe_send(sockfd, netbuf, 36, addr);
 }
 
-// Receive message
-void recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
-    char netbuf[MAXLINE+38];
+// Receive valid message
+bool recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
+    char netbuf[MAXLN+38];
 
     // Get message header
     safe_recv(sockfd, netbuf, 22, addr);
@@ -108,10 +120,14 @@ void recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
 
     memcpy(m->buf, netbuf+22, m->sz);
     memcpy(m->md5, netbuf+22+m->sz, 16);
+
+    unsigned char md5[16];
+    get_md5(netbuf, 22+m->sz, md5);
+    return memcmp(m->md5, md5, 16) == 0;
 }
 
-// Receive ack
-void recv_ack(AckMessage *am, int sockfd, void *addr) {
+// Receive valid ack
+bool recv_ack(AckMessage *am, int sockfd, void *addr) {
     char netbuf[36];
 
     // Recv ack
@@ -122,35 +138,24 @@ void recv_ack(AckMessage *am, int sockfd, void *addr) {
     memcpy(&am->sec, netbuf+8, 8);
     memcpy(&am->nsec, netbuf+16, 4);
     memcpy(&am->md5, netbuf+20, 16);
+    am->seqnum = (uint64_t)ntohl(am->seqnum);
+    am->sec = (uint64_t)ntohl(am->sec);
+    am->nsec = (uint32_t)ntohl(am->nsec);
+#if DEBUG
+    printf("[!] Ack %u (at %u)\n", am->seqnum, am->sec);
+#endif
+
+    unsigned char md5[16];
+    get_md5(netbuf, 20, md5);
+    return memcmp(am->md5, md5, 16) == 0;
 }
 
 // Integrity
-void get_msg_md5(Message *msg, char *md5) {
+void get_md5(char *data, unsigned long size, char *md5) {
     MD5_CTX c;
     MD5_Init(&c);
-    MD5_Update(&c, msg, 22);
-    MD5_Update(&c, msg->buf, msg->sz);
+    MD5_Update(&c, data, size);
     MD5_Final(md5, &c);
-}
-
-void get_ack_md5(AckMessage *ackmsg, char *md5) {
-    MD5_CTX c;
-    MD5_Init(&c);
-    MD5_Update(&c, ackmsg, 20);
-    MD5_Final(md5, &c);
-}
-
-bool check_msg_md5(Message *msg) {
-    char md5[16];
-    get_msg_md5(msg, md5);
-    return memcmp(msg->md5, md5, 16) == 0;
-}
-
-bool check_ack_md5(AckMessage *msg) {
-    char md5[16];
-    get_ack_md5(msg, md5);
-
-    return memcmp(msg->md5, md5, 16) == 0;
 }
 
 // Memory

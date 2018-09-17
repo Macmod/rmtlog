@@ -28,7 +28,7 @@ typedef struct AckTimeoutMsg {
 } AckTimeoutMsg;
 
 SlidingWindow *make_sliding_window(uint64_t);
-void sliding_window_insert(SlidingWindow*, Message);
+void sliding_window_insert(SlidingWindow*, Message*);
 void free_sliding_window(SlidingWindow*);
 void set_ack_flag(uint64_t, SlidingWindow*);
 

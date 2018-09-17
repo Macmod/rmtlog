@@ -14,11 +14,11 @@ SlidingWindow *make_sliding_window(uint64_t width) {
     return sw;
 }
 
-void sliding_window_insert(SlidingWindow *sw, Message m) {
+void sliding_window_insert(SlidingWindow *sw, Message *m) {
     SlidingWindowElem *swe = (SlidingWindowElem*)malloc(sizeof(SlidingWindowElem));
     SlidingWindowElem *aux;
 
-    swe->msg = m;
+    swe->msg = *m;
     swe->next = NULL;
     swe->acked = false;
 

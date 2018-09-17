@@ -26,12 +26,9 @@ void fill_message(Message*, char*, uint64_t);
 void fill_ack(AckMessage*, uint64_t);
 void send_message(Message*, int, void*);
 void send_ack(AckMessage*, int, struct sockaddr_in*);
-void recv_message(Message*, int, struct sockaddr_in*);
-void recv_ack(AckMessage*, int, void*);
-void get_msg_md5(Message*, char*);
-void get_ack_md5(AckMessage*, char*);
-bool check_msg_md5(Message*);
-bool check_ack_md5(AckMessage*);
+bool recv_message(Message*, int, struct sockaddr_in*);
+bool recv_ack(AckMessage*, int, void*);
+void get_md5(char*, unsigned long, char*);
 void free_message(Message *m);
 
 #endif
