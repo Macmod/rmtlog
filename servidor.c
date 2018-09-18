@@ -185,8 +185,7 @@ int main(int argc, char *argv[]) {
         }
 
 #if DEBUG
-        printf("--- %s:%u (sec=%u, nsec=%u)\n", inet_ntoa(addr.sin_addr),
-               addr.sin_port, m.sec, m.nsec);
+        printf("--- %s:%u\n", inet_ntoa(addr.sin_addr), addr.sin_port);
 #endif
 
         // Unset client timeout

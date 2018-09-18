@@ -104,7 +104,7 @@ bool recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
     // Get message
     safe_recv(sockfd, netbuf+22, m->sz+16, addr);
 #if DEBUG
-    printf("[!] Message %u (len=%u)\n", m->seqnum, m->sz);
+    printf("[!] Message %u (len=%u, sec=%llu, nsec=%lu)\n", m->seqnum, m->sz, m->sec, m->nsec);
 #endif
 
     memcpy(m->buf, netbuf+22, m->sz);
