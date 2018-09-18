@@ -46,8 +46,8 @@ void send_message(Message *m, int sockfd, void *addr) {
     char netbuf[MAXLN+38];
 
     // Build frame
-    uint64_t net_seqnum = (uint64_t)htonl(m->seqnum);
-    uint64_t net_sec = (uint64_t)htonl(m->sec);
+    uint64_t net_seqnum = (uint64_t)htobe64(m->seqnum);
+    uint64_t net_sec = (uint64_t)htobe64(m->sec);
     uint32_t net_nsec = (uint32_t)htonl(m->nsec);
     uint16_t net_sz = (uint16_t)htons(m->sz);
     memcpy(netbuf, &net_seqnum, 8);
@@ -56,24 +56,13 @@ void send_message(Message *m, int sockfd, void *addr) {
     memcpy(netbuf+20, &net_sz, 2);
     memcpy(netbuf+22, m->buf, m->sz);
 
-    // Send frame header
-    safe_send(sockfd, netbuf, 22, addr);
-#if DEBUG
-    printf("[!] Sent header (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
-#endif
-
-    // Send frame
-    safe_send(sockfd, m->buf, m->sz, addr);
-#if DEBUG
-    printf("[!] Sent message\n");
-#endif
-
     get_md5(netbuf, 22+m->sz, m->md5);
     memcpy(netbuf+22+m->sz, m->md5, 16);
 
-    safe_send(sockfd, m->md5, 16, addr);
+    // Send all
+    safe_send(sockfd, netbuf, 22+m->sz+16, addr);
 #if DEBUG
-    printf("[!] Sent MD5\n");
+    printf("[!] Sent message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
 #endif
 }
 
@@ -82,8 +71,8 @@ void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr) {
     char netbuf[36];
 
     // Populate struct
-    uint64_t net_seqnum = (uint64_t)htonl(am->seqnum);
-    uint64_t net_sec = (uint64_t)htonl(am->sec);
+    uint64_t net_seqnum = (uint64_t)htobe64(am->seqnum);
+    uint64_t net_sec = (uint64_t)htobe64(am->sec);
     uint32_t net_nsec = (uint32_t)htonl(am->nsec);
     memcpy(netbuf, &net_seqnum, 8);
     memcpy(netbuf+8, &net_sec, 8);
@@ -107,8 +96,8 @@ bool recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
     memcpy(&m->sec, netbuf+8, 8);
     memcpy(&m->nsec, netbuf+16, 4);
     memcpy(&m->sz, netbuf+20, 2);
-    m->seqnum = (uint64_t)ntohl(m->seqnum);
-    m->sec = (uint64_t)ntohl(m->sec);
+    m->seqnum = (uint64_t)be64toh(m->seqnum);
+    m->sec = (uint64_t)be64toh(m->sec);
     m->nsec = (uint32_t)ntohl(m->nsec);
     m->sz = (uint16_t)ntohs(m->sz);
 
@@ -138,8 +127,8 @@ bool recv_ack(AckMessage *am, int sockfd, void *addr) {
     memcpy(&am->sec, netbuf+8, 8);
     memcpy(&am->nsec, netbuf+16, 4);
     memcpy(&am->md5, netbuf+20, 16);
-    am->seqnum = (uint64_t)ntohl(am->seqnum);
-    am->sec = (uint64_t)ntohl(am->sec);
+    am->seqnum = (uint64_t)be64toh(am->seqnum);
+    am->sec = (uint64_t)be64toh(am->sec);
     am->nsec = (uint32_t)ntohl(am->nsec);
 #if DEBUG
     printf("[!] Ack %u (at %u)\n", am->seqnum, am->sec);
