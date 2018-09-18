@@ -26,25 +26,22 @@ uint32_t safe_send(int sockfd, void *buf, uint32_t total,
 
 // Safe recv
 uint32_t safe_recv(int sockfd, void *buf, uint32_t total,
-                   struct sockaddr_in *src_addr) {
-   ssize_t i = 0,
-           len = 0;
-   socklen_t addrlen = sizeof(*src_addr);
+        struct sockaddr_in *src_addr) {
+    size_t len = 0;
+    socklen_t addrlen = sizeof(*src_addr);
 
-   for (; i < total &&
-           (len = recvfrom(sockfd, buf + i, total - i, 0, (struct sockaddr*)src_addr, &addrlen)) > 0;
-            i += len);
+    len = recvfrom(sockfd, buf, total, 0, (struct sockaddr*)src_addr, &addrlen);
 
-   if (len < 0) {
-       close(sockfd);
-       logerr("Receive failed");
-   } else if (len == 0) {
-       close(sockfd);
-       fprintf(stderr, "Server closed the connection during client recv.\n");
-       exit(EXIT_FAILURE);
-   }
+    if (len < 0) {
+        close(sockfd);
+        logerr("Receive failed");
+    } else if (len == 0) {
+        close(sockfd);
+        fprintf(stderr, "Server closed the connection during client recv.\n");
+        exit(EXIT_FAILURE);
+    }
 
-   return (uint32_t)i;
+    return (uint32_t)len;
 }
 
 // Read ulong from char* safely

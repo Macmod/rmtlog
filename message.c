@@ -59,8 +59,8 @@ void send_message(Message *m, int sockfd, void *addr) {
     get_md5(netbuf, 22+m->sz, m->md5);
     memcpy(netbuf+22+m->sz, m->md5, 16);
 
-    // Send all
-    safe_send(sockfd, netbuf, 22+m->sz+16, addr);
+    // Send message
+    safe_send(sockfd, netbuf, 38+m->sz, addr);
 #if DEBUG
     printf("[!] Sent message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
 #endif
@@ -87,10 +87,10 @@ void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr) {
 
 // Receive valid message
 bool recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
-    char netbuf[MAXLN+38];
+    char netbuf[MAXLN+39];
 
-    // Get message header
-    safe_recv(sockfd, netbuf, 22, addr);
+    // Get message
+    safe_recv(sockfd, netbuf, MAXLN+38, addr);
 
     memcpy(&m->seqnum, netbuf, 8);
     memcpy(&m->sec, netbuf+8, 8);
@@ -101,17 +101,15 @@ bool recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
     m->nsec = (uint32_t)ntohl(m->nsec);
     m->sz = (uint16_t)ntohs(m->sz);
 
-    // Get message
-    safe_recv(sockfd, netbuf+22, m->sz+16, addr);
-#if DEBUG
-    printf("[!] Message %u (len=%u, sec=%llu, nsec=%lu)\n", m->seqnum, m->sz, m->sec, m->nsec);
-#endif
-
     memcpy(m->buf, netbuf+22, m->sz);
     memcpy(m->md5, netbuf+22+m->sz, 16);
 
     unsigned char md5[16];
     get_md5(netbuf, 22+m->sz, md5);
+
+#if DEBUG
+    printf("[!] Message %u (len=%u, sec=%llu, nsec=%lu)\n", m->seqnum, m->sz, m->sec, m->nsec);
+#endif
     return memcmp(m->md5, md5, 16) == 0;
 }
 
