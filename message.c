@@ -17,9 +17,8 @@ void alloc_message(Message *m, size_t size) {
 }
 
 // Fill message
-void fill_message(Message *m, char *buf, uint64_t seqnum) {
+void fill_message(Message *m, char *buf, size_t sz, uint64_t seqnum) {
     struct timespec ts;
-    size_t sz = strlen(buf);
     memcpy(m->buf, buf, sz);
 
     clock_gettime(CLOCK_REALTIME, &ts);

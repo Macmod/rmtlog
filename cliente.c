@@ -43,19 +43,25 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
     printf("[!] Sending file...\n");
 #endif
     while (fgets(buf, MAXLN, fin)) {
+        size_t msg_len = strlen(buf);
+
+        // Strip newline
+        buf[msg_len-1] = '\0';
+        msg_len--;
+
         // Print log line
 #if !DEBUG
-        printf("%s", buf);
+        printf("%s\n", buf);
 #endif
 
         // Increment message count
         xl.nmsg += 1;
 
         // Allocate space for message
-        alloc_message(&m, strlen(buf));
+        alloc_message(&m, msg_len);
 
         // Fill message
-        fill_message(&m, buf, seqnum);
+        fill_message(&m, buf, msg_len, seqnum);
 
 #if MESSAGE_CORRUPTION
         // Corrupt some md5s

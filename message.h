@@ -22,7 +22,7 @@ typedef struct AckMessage {
 } __attribute__((packed)) AckMessage;
 
 void alloc_message(Message*, size_t);
-void fill_message(Message*, char*, uint64_t);
+void fill_message(Message*, char*, size_t, uint64_t);
 void fill_ack(AckMessage*, uint64_t);
 void send_message(Message*, int, void*);
 void send_ack(AckMessage*, int, struct sockaddr_in*);
