@@ -96,6 +96,6 @@ void ack_timeout(union sigval arg) {
     printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
 #endif
 
-    set_ack_timeout(swe, tout);
     pthread_mutex_unlock(&timer_mutex);
+    set_ack_timeout(swe, tout);
 }

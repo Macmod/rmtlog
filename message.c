@@ -86,7 +86,7 @@ void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr) {
 
 // Receive valid message
 bool recv_message(Message *m, int sockfd, struct sockaddr_in *addr) {
-    char netbuf[MAXLN+39];
+    char netbuf[MAXLN+38];
 
     // Get message
     safe_recv(sockfd, netbuf, MAXLN+38, addr);
