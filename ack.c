@@ -82,9 +82,5 @@ void ack_timeout(union sigval arg) {
 #endif
 
     send_message(msg, sockfd, addr);
-#if DEBUG
-    printf("[!] Retransmitted message (seqnum=%u, len=%u)\n", msg->seqnum, msg->sz);
-#endif
-
     set_ack_timeout(swe, tout);
 }
