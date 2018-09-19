@@ -3,6 +3,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#define MESSAGE_CORRUPTION true
+#define ACK_CORRUPTION true
 
 // Message Structures
 typedef struct Message {
@@ -24,8 +26,8 @@ typedef struct AckMessage {
 void alloc_message(Message*, size_t);
 void fill_message(Message*, char*, size_t, uint64_t);
 void fill_ack(AckMessage*, uint64_t);
-void send_message(Message*, int, void*);
-void send_ack(AckMessage*, int, struct sockaddr_in*);
+void send_message(Message*, int, void*, double);
+void send_ack(AckMessage*, int, struct sockaddr_in*, double);
 bool recv_message(Message*, int, struct sockaddr_in*);
 bool recv_ack(AckMessage*, int, void*);
 void get_md5(char*, unsigned long, char*);

@@ -81,6 +81,6 @@ void ack_timeout(union sigval arg) {
     printf("[!] Ack for %u timed out! Retransmitting...\n", msg->seqnum);
 #endif
 
-    send_message(msg, sockfd, addr);
+    send_message(msg, sockfd, addr, 0);
     set_ack_timeout(swe, tout);
 }

@@ -15,7 +15,6 @@
 #include "clientlist.h"
 #define INADDR "127.0.0.1"
 #define MAX_PENDING_CONNS 10
-#define ACK_CORRUPTION true
 
 // Client list
 ClientList clist;
@@ -65,18 +64,11 @@ void message_handler(Message m, Client *client, double perr) {
         }
     }
 
-    // Reply ack
+    // Fill ack
     fill_ack(&am, m.seqnum);
-#if ACK_CORRUPTION
-    // Corrupt some md5s
-    if ((double)rand()/RAND_MAX < perr) {
-#if DEBUG
-        printf("--- Corruption happened to ack.\n");
-#endif
-        am.md5[15] += 1;
-    }
-#endif
-    send_ack(&am, sockfd, &client->addr_id);
+
+    // Reply ack
+    send_ack(&am, sockfd, &client->addr_id, perr);
 }
 
 int main(int argc, char *argv[]) {

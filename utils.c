@@ -117,3 +117,7 @@ double timespec_diff(struct timespec *start, struct timespec *end) {
     result = diff.tv_sec + diff.tv_nsec/1000000000;
     return result;
 }
+
+bool get_rand_bool(double perr) {
+    return (double)rand()/RAND_MAX < perr;
+}

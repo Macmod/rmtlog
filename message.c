@@ -41,7 +41,7 @@ void fill_ack(AckMessage *am, uint64_t seqnum) {
 }
 
 // Send message
-void send_message(Message *m, int sockfd, void *addr) {
+void send_message(Message *m, int sockfd, void *addr, double perr) {
     char netbuf[MAXLN+38];
 
     // Build frame
@@ -56,6 +56,14 @@ void send_message(Message *m, int sockfd, void *addr) {
     memcpy(netbuf+22, m->buf, m->sz);
 
     get_md5(netbuf, 22+m->sz, m->md5);
+#if MESSAGE_CORRUPTION
+    if (get_rand_bool(perr)) {
+#if DEBUG
+        printf("--- Corruption happened to message.\n");
+#endif
+        m->md5[15] += 1;
+    }
+#endif
     memcpy(netbuf+22+m->sz, m->md5, 16);
 
     // Send message
@@ -66,7 +74,7 @@ void send_message(Message *m, int sockfd, void *addr) {
 }
 
 // Send ack
-void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr) {
+void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr, double perr) {
     char netbuf[36];
 
     // Populate struct
@@ -78,6 +86,14 @@ void send_ack(AckMessage *am, int sockfd, struct sockaddr_in *addr) {
     memcpy(netbuf+16, &net_nsec, 4);
 
     get_md5(netbuf, 20, am->md5);
+#if ACK_CORRUPTION
+    if (get_rand_bool(perr)) {
+#if DEBUG
+        printf("--- Corruption happened to ack.\n");
+#endif
+        am->md5[15] += 1;
+    }
+#endif
     memcpy(netbuf+20, am->md5, 16);
 
     // Send ack

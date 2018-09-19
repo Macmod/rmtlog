@@ -12,25 +12,17 @@
 #include "message.h"
 #include "clientsw.h"
 #include "ack.h"
-#define MESSAGE_CORRUPTION true
 
 int sockfd;
 uint16_t port;
 size_t nsent = 0;
+size_t nerror = 0;
 FILE *fin;
 
-// Execution log structure
-typedef struct ExecutionLog {
-    size_t nmsg;
-    size_t nerror;
-} ExecutionLog;
-
 // Client handler
-ExecutionLog client_handler(void *server_addr, uint64_t width,
-                            uint64_t tout, double perr) {
-    ExecutionLog xl;
-
+size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double perr) {
     char buf[MAXLN];
+    size_t nmsg = 0;
     SlidingWindow *window = make_sliding_window(width);
 
     Message m;
@@ -38,6 +30,7 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
     AckMessage ack;
 
     uint64_t seqnum = 1;
+    bool corrupt;
 
 #if DEBUG
     printf("[!] Sending file...\n");
@@ -55,7 +48,7 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
 #endif
 
         // Increment message count
-        xl.nmsg += 1;
+        nmsg += 1;
 
         // Allocate space for message
         alloc_message(&m, msg_len);
@@ -63,22 +56,11 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
         // Fill message
         fill_message(&m, buf, msg_len, seqnum);
 
-#if MESSAGE_CORRUPTION
-        // Corrupt some md5s
-        if ((double)rand()/RAND_MAX < perr) {
-#if DEBUG
-            printf("--- Corruption happened to message.\n");
-#endif
-            m.md5[15] += 1;
-            xl.nerror += 1;
-        }
-#endif
-
         // Put message into sliding window
         sliding_window_insert(window, &m);
 
         // Send message
-        send_message(&m, sockfd, server_addr);
+        send_message(&m, sockfd, server_addr, perr);
 
         // Set ack timeout
         create_ack_timer(window->last, sockfd, server_addr, tout);
@@ -139,7 +121,7 @@ ExecutionLog client_handler(void *server_addr, uint64_t width,
     // Free sliding window
     free(window);
 
-    return xl;
+    return nmsg;
 }
 
 int main(int argc, char *argv[]) {
@@ -219,7 +201,7 @@ int main(int argc, char *argv[]) {
         logerr("Socket error");
 
     // Run client handler
-    ExecutionLog xl = client_handler(&server, wtx, tout, perr);
+    size_t nmsg = client_handler(&server, wtx, tout, perr);
 
     // Close connection
     close(sockfd);
