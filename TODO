@@ -1,2 +1,3 @@
 - Check everything, especially mutexes & possible leaks.
-    - Fix ack timeout race when corruption is enabled.
+- Fix bug when SWS >= log lines
+- Compare to teacher's implementation.
