@@ -91,7 +91,7 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
 
     // Receive acks for last window
     // (no more lines to read, although still need to close window)
-    for (uint64_t i = 0; i < width+1; i++) {
+    while(window->first != NULL) {
         while (!window->first->acked) {
 #if DEBUG
             printf("[!] Window waiting for Ack with seqnum=%u\n",
