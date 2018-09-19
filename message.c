@@ -9,7 +9,8 @@
 #include "utils.h"
 #include "message.h"
 
-extern size_t nsent;
+size_t nsent = 0;
+size_t nerror = 0;
 
 // Alloc space for message
 void alloc_message(Message *m, size_t size) {
@@ -62,12 +63,14 @@ void send_message(Message *m, int sockfd, void *addr, double perr) {
         printf("--- Corruption happened to message.\n");
 #endif
         m->md5[15] += 1;
+        nerror++;
     }
 #endif
     memcpy(netbuf+22+m->sz, m->md5, 16);
 
     // Send message
     safe_send(sockfd, netbuf, 38+m->sz, addr);
+    nsent++;
 #if DEBUG
     printf("[!] Sent message (seqnum=%u, len=%u)\n", m->seqnum, m->sz);
 #endif

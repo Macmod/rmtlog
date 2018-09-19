@@ -15,8 +15,8 @@
 
 int sockfd;
 uint16_t port;
-size_t nsent = 0;
-size_t nerror = 0;
+size_t nsent;
+size_t nerror;
 FILE *fin;
 
 // Client handler
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
     total_time = timespec_diff(&start_time, &end_time);
 
     // Client output
-    /* printf("%zu %zu %zu %.3fs", xl.nmsg, nsent, xl.nerror, total_time); */
+    printf("%zu %zu %zu %.3fs\n", nmsg, nsent, nerror, total_time);
 
     return 0;
 }

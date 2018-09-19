@@ -6,6 +6,10 @@
 #define MESSAGE_CORRUPTION true
 #define ACK_CORRUPTION true
 
+// Bookkeeping
+extern size_t nsent;
+extern size_t nerror;
+
 // Message Structures
 typedef struct Message {
     uint64_t seqnum;
