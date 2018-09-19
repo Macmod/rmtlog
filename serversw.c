@@ -48,6 +48,14 @@ void sliding_window_slide(SlidingWindow *sw) {
     Message void_msg = {0};
     SlidingWindowElem *aux, *swe;
 
+    bool trivial = sw->first == sw->last;
+    if (trivial) {
+        uint64_t seqnum = sw->first->msg.seqnum;
+        sw->first->msg = void_msg;
+        sw->first->msg.seqnum = seqnum + 1;
+        return;
+    }
+
     aux = sw->first->next;
     free_message(&sw->first->msg);
     free(sw->first);
