@@ -30,7 +30,7 @@ void sliding_window_insert(SlidingWindow *sw, Message *m) {
     aux = sw->last;
     sw->last = aux->next = swe;
 
-    if (sw->count == sw->width) {
+    if (sw->count == sw->width-1) {
         aux = sw->first;
         sw->first = aux->next;
         free_message(&aux->msg);

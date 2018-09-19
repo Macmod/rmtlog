@@ -69,7 +69,7 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
         seqnum++;
 
         // Block until ack of first element when window full
-        if (window->count == window->width) {
+        if (window->count == window->width-1) {
             while (!window->first->acked) {
 #if DEBUG
                 printf("[!] Window waiting for Ack with seqnum=%u\n",

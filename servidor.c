@@ -34,23 +34,23 @@ void message_handler(Message m, Client *client, double perr) {
 
     if (m.seqnum < nfe) {
 #if DEBUG
-        printf("--- Old frame [< %u] received. Acknowledging again.\n", nfe);
+        printf("--- Old frame [%lu < %lu] received. Acknowledging again.\n", m.seqnum, nfe);
 #endif
     } else if (m.seqnum > lfa) {
 #if DEBUG
-        printf("--- Frame out of window [> %u]. Discarding.\n", lfa);
+        printf("--- Frame out of window [> %lu]. Discarding.\n", lfa);
 #endif
         return;
     } else {
 #if DEBUG
-        printf("--- Inserting to window and acknowleding.\n");
+        printf("--- Inserting to window and acknowledging.\n");
 #endif
         sliding_window_insert(sw, m);
 
         // Write all okay messages in left of window to file and slide
         while (sw->first != NULL && sw->first->msg.buf != NULL) {
 #if DEBUG
-            printf("--- Sliding window to [%u, %u]\n", nfe+1, lfa+1);
+            printf("--- Sliding window to [%lu, %lu]\n", nfe+1, lfa+1);
 #endif
 
 #if !DEBUG
