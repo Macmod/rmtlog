@@ -1,3 +1,2 @@
 - Check everything, especially mutexes & possible leaks.
-- Fix bug when SWS >= log lines
 - Compare to teacher's implementation.
