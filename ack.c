@@ -35,6 +35,8 @@ void create_ack_timer(SlidingWindowElem *swe, int sockfd,
 
 // Setup ack reception timeout
 void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
+    pthread_mutex_lock(&swe->tlock);
+
     if (swe->timer == NULL) {
 #if DEBUG
         printf("--- Could not set timer. Timer already deleted.\n");
@@ -53,6 +55,8 @@ void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
     status = timer_settime(swe->timer, 0, &ts, 0);
     if (status == -1)
         logerr("Timer arming error");
+
+    pthread_mutex_unlock(&swe->tlock);
 }
 
 // Unset ack reception timeout
@@ -85,8 +89,6 @@ void ack_timeout(union sigval arg) {
     printf("[!] Ack for %lu timed out! Retransmitting...\n", msg->seqnum);
 #endif
 
-    pthread_mutex_lock(&swe->tlock);
     send_message(msg, sockfd, addr, 0);
     set_ack_timeout(swe, tout);
-    pthread_mutex_unlock(&swe->tlock);
 }
