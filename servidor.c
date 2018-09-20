@@ -50,11 +50,11 @@ void message_handler(Message m, Client *client, double perr) {
         // Write all okay messages in left of window to file and slide
         while (sw->first->msg.buf != NULL) {
 #if !DEBUG
-            fwrite(m.buf, sizeof(char), m.sz, stdout);
+            fwrite(sw->first->msg.buf, sizeof(char), sw->first->msg.sz, stdout);
             fwrite("\n", sizeof(char), 1, stdout);
 #endif
 
-            fwrite(m.buf, sizeof(char), m.sz, fout);
+            fwrite(sw->first->msg.buf, sizeof(char), sw->first->msg.sz, fout);
             fwrite("\n", sizeof(char), 1, fout);
             sliding_window_slide(sw);
 
