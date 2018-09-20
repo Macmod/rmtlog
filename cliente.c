@@ -72,7 +72,7 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
         if (window->count == window->width-1) {
             while (!window->first->acked) {
 #if DEBUG
-                printf("[!] Window waiting for Ack with seqnum=%u\n",
+                printf("[!] Window waiting for Ack %lu\n",
                        window->first->msg.seqnum);
 #endif
                 if (recv_ack(&ack, sockfd, server_addr)) {
@@ -94,7 +94,7 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
     while(window->first != NULL) {
         while (!window->first->acked) {
 #if DEBUG
-            printf("[!] Window waiting for Ack with seqnum=%u\n",
+            printf("[!] Window waiting for Ack %lu\n",
                    window->first->msg.seqnum);
 #endif
             if (recv_ack(&ack, sockfd, server_addr)) {

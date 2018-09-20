@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "clientsw.h"
 #include "message.h"
 #include "ack.h"
@@ -21,6 +22,8 @@ void sliding_window_insert(SlidingWindow *sw, Message *m) {
     swe->msg = *m;
     swe->next = NULL;
     swe->acked = false;
+    swe->timer = NULL;
+    pthread_mutex_init(&swe->tlock, NULL);
 
     if (sw->first == NULL) {
         sw->first = sw->last = swe;

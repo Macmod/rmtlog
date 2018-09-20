@@ -1,12 +1,14 @@
 #ifndef CLIENTSW_H
 #define CLIENTSW_H
 #include <stdint.h>
+#include <pthread.h>
 #include "message.h"
 
 // Sliding Window
 typedef struct SlidingWindowElem {
     Message msg;
     timer_t timer;
+    pthread_mutex_t tlock;
     bool acked;
     struct AckTimeoutMsg *atm;
     struct SlidingWindowElem *next;
