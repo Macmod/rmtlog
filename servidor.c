@@ -48,11 +48,7 @@ void message_handler(Message m, Client *client, double perr) {
         sliding_window_insert(sw, m);
 
         // Write all okay messages in left of window to file and slide
-        while (sw->first != NULL && sw->first->msg.buf != NULL) {
-#if DEBUG
-            printf("--- Sliding window to [%lu, %lu]\n", nfe+1, lfa+1);
-#endif
-
+        while (sw->first->msg.buf != NULL) {
 #if !DEBUG
             fwrite(m.buf, sizeof(char), m.sz, stdout);
             fwrite("\n", sizeof(char), 1, stdout);
@@ -61,6 +57,12 @@ void message_handler(Message m, Client *client, double perr) {
             fwrite(m.buf, sizeof(char), m.sz, fout);
             fwrite("\n", sizeof(char), 1, fout);
             sliding_window_slide(sw);
+
+#if DEBUG
+            printf("--- Slid window to [%lu, %lu]\n",
+                   sw->first->msg.seqnum,
+                   sw->first->msg.seqnum + sw->width);
+#endif
         }
     }
 
