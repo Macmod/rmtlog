@@ -45,21 +45,6 @@ void set_client_timeout(Client *client) {
         logerr("Timer arming error");
 }
 
-// Unset client deletion timeout
-void unset_client_timeout(Client *client) {
-    int status;
-    struct itimerspec ts;
-
-    ts.it_value.tv_sec = 0;
-    ts.it_value.tv_nsec = 0;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-
-    status = timer_settime(client->timer, 0, &ts, 0);
-    if (status == -1)
-        logerr("Timer disarming error");
-}
-
 // Handle client timeout
 void client_timeout(union sigval arg) {
     Client *c = arg.sival_ptr;
@@ -143,8 +128,8 @@ Client *insert_client(ClientList *cl, struct sockaddr_in addr, uint64_t width) {
 
     cl->last = c;
 
-    /* create_client_timer(c); */
-    /* set_client_timeout(c); */
+    create_client_timer(c);
+    set_client_timeout(c);
 
     pthread_mutex_unlock(&lock);
     return c;

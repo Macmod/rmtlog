@@ -37,7 +37,6 @@ void init_client_lock();
 void destroy_client_lock();
 void create_client_timer(Client*);
 void set_client_timeout(Client*);
-void unset_client_timeout(Client*);
 ClientList make_client_list();
 bool find_client(ClientList*, struct sockaddr_in, Client**);
 void remove_client(ClientList*, struct sockaddr_in);

@@ -157,22 +157,28 @@ int main(int argc, char *argv[]) {
     // Handle messages from clients
     while (1) {
         // Receive message
-        if (recv_message(&m, sockfd, &addr)) {
+        bool md5 = recv_message(&m, sockfd, &addr);
+#if DEBUG
+        printf("--- %s:%u\n", inet_ntoa(addr.sin_addr), addr.sin_port);
+#endif
+
+        // Handle client
+        if (!find_client(&clist, addr, &client)) {
+#if DEBUG
+            printf("--- New client\n");
+#endif
+            client = insert_client(&clist, addr, wrx);
+        } else {
+#if DEBUG
+            printf("--- Existing client\n");
+#endif
+        }
+
+
+        if (md5) {
 #if DEBUG
             printf("--- MD5: OK\n");
 #endif
-
-            // Handle client
-            if (!find_client(&clist, addr, &client)) {
-#if DEBUG
-                printf("--- New client\n");
-#endif
-                client = insert_client(&clist, addr, wrx);
-            } else {
-#if DEBUG
-                printf("--- Existing client\n");
-#endif
-            }
 
             message_handler(m, client, perr);
         } else {
@@ -181,15 +187,8 @@ int main(int argc, char *argv[]) {
 #endif
         }
 
-#if DEBUG
-        printf("--- %s:%u\n", inet_ntoa(addr.sin_addr), addr.sin_port);
-#endif
-
-        // Unset client timeout
-        /* unset_client_timeout(client); */
-
         // Reset client timeout
-        /* set_client_timeout(client); */
+        set_client_timeout(client);
     }
 
     return 0;
