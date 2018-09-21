@@ -187,7 +187,6 @@ int main(int argc, char *argv[]) {
 #endif
         }
 
-        // Reset client timeout
         set_client_timeout(client);
     }
 

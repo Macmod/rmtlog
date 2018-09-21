@@ -96,6 +96,7 @@ void remove_client(ClientList *cl, struct sockaddr_in addr) {
     while (aux != NULL) {
         if (addr_cmp(aux->addr_id, addr)) {
             timer_delete(aux->timer);
+            free_sliding_window(aux->sw);
             if (prev != NULL)
                 prev->next = aux->next;
             free(aux);

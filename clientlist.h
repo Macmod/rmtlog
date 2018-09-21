@@ -34,7 +34,6 @@ typedef struct ClientList {
 extern ClientList clist;
 
 void init_client_lock();
-void destroy_client_lock();
 void create_client_timer(Client*);
 void set_client_timeout(Client*);
 ClientList make_client_list();
