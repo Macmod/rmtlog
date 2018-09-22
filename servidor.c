@@ -18,6 +18,9 @@
 
 // Client list
 ClientList clist;
+pthread_mutex_t clistlock;
+
+// Main vars
 int sockfd;
 uint16_t port;
 FILE *fout;
@@ -71,6 +74,8 @@ void message_handler(Message m, Client *client, double perr) {
 
     // Reply ack
     send_ack(&am, sockfd, &client->addr_id, perr);
+
+    pthread_mutex_unlock(&clistlock);
 }
 
 int main(int argc, char *argv[]) {
@@ -143,7 +148,7 @@ int main(int argc, char *argv[]) {
     Client *client;
 
     // Setup client list
-    init_client_lock();
+    pthread_mutex_init(&clistlock, NULL);
     clist = make_client_list();
 
     // Message placeholder
@@ -162,6 +167,8 @@ int main(int argc, char *argv[]) {
         printf("--- %s:%u\n", inet_ntoa(addr.sin_addr), addr.sin_port);
 #endif
 
+        pthread_mutex_lock(&clistlock);
+
         // Handle client
         if (!find_client(&clist, addr, &client)) {
 #if DEBUG
@@ -174,6 +181,8 @@ int main(int argc, char *argv[]) {
 #endif
         }
 
+        // Reset timeout
+        set_client_timeout(client);
 
         if (md5) {
 #if DEBUG
@@ -187,7 +196,7 @@ int main(int argc, char *argv[]) {
 #endif
         }
 
-        set_client_timeout(client);
+        pthread_mutex_unlock(&clistlock);
     }
 
     return 0;

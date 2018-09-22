@@ -32,8 +32,8 @@ typedef struct ClientList {
 // (global since I implement inactive client
 //  timeouts using threads)
 extern ClientList clist;
+extern pthread_mutex_t clistlock;
 
-void init_client_lock();
 void create_client_timer(Client*);
 void set_client_timeout(Client*);
 ClientList make_client_list();

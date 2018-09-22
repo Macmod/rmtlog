@@ -6,11 +6,7 @@
 #include "clientlist.h"
 
 // Lock for actions that write/read from the client list
-pthread_mutex_t lock;
-
-void init_client_lock() {
-    pthread_mutex_init(&lock, NULL);
-}
+pthread_mutex_t clistlock;
 
 // Create client timer
 void create_client_timer(Client *client) {
@@ -47,6 +43,8 @@ void set_client_timeout(Client *client) {
 
 // Handle client timeout
 void client_timeout(union sigval arg) {
+    pthread_mutex_lock(&clistlock);
+
     Client *c = arg.sival_ptr;
 
 #if DEBUG
@@ -55,6 +53,8 @@ void client_timeout(union sigval arg) {
 #endif
 
     remove_client(&clist, c->addr_id);
+
+    pthread_mutex_unlock(&clistlock);
 }
 
 // Create client list
@@ -69,27 +69,21 @@ ClientList make_client_list() {
 // Find client in list
 bool find_client(ClientList *cl, struct sockaddr_in addr,
                    Client **c) {
-    pthread_mutex_lock(&lock);
-
     Client *aux = cl->first;
     while (aux != NULL) {
         if (addr_cmp(aux->addr_id, addr)) {
             *c = aux;
-            pthread_mutex_unlock(&lock);
             return true;
         }
 
         aux = aux->next;
     }
 
-    pthread_mutex_unlock(&lock);
     return false;
 }
 
 // Remove client from list
 void remove_client(ClientList *cl, struct sockaddr_in addr) {
-    pthread_mutex_lock(&lock);
-
     Client *aux = cl->first,
            *prev = NULL;
 
@@ -97,24 +91,28 @@ void remove_client(ClientList *cl, struct sockaddr_in addr) {
         if (addr_cmp(aux->addr_id, addr)) {
             timer_delete(aux->timer);
             free_sliding_window(aux->sw);
-            if (prev != NULL)
+
+            if (prev != NULL) {
                 prev->next = aux->next;
+            } else {
+                cl->first = aux->next;
+            }
+
+            if (aux == cl->last) {
+                cl->last = prev;
+            }
+
             free(aux);
-            pthread_mutex_unlock(&lock);
             return;
         }
 
         prev = aux;
         aux = aux->next;
     }
-
-    pthread_mutex_unlock(&lock);
 }
 
 // Insert client in list
 Client *insert_client(ClientList *cl, struct sockaddr_in addr, uint64_t width) {
-    pthread_mutex_lock(&lock);
-
     Client *c = (Client*)malloc(sizeof(Client));
     c->addr_id = addr;
     c->timer = NULL;
@@ -130,8 +128,5 @@ Client *insert_client(ClientList *cl, struct sockaddr_in addr, uint64_t width) {
     cl->last = c;
 
     create_client_timer(c);
-    set_client_timeout(c);
-
-    pthread_mutex_unlock(&lock);
     return c;
 }
