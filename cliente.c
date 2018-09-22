@@ -17,6 +17,8 @@ int sockfd;
 uint16_t port;
 size_t nsent;
 size_t nerror;
+pthread_mutex_t nsent_lock;
+pthread_mutex_t nerror_lock;
 FILE *fin;
 
 // Client handler
@@ -199,6 +201,10 @@ int main(int argc, char *argv[]) {
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd == -1)
         logerr("Socket error");
+
+    // Setup locks for shared vars
+    pthread_mutex_init(&nsent_lock, NULL);
+    pthread_mutex_init(&nerror_lock, NULL);
 
     // Run client handler
     size_t nmsg = client_handler(&server, wtx, tout, perr);

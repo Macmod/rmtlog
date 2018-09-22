@@ -9,6 +9,8 @@
 // Bookkeeping
 extern size_t nsent;
 extern size_t nerror;
+extern pthread_mutex_t nsent_lock;
+extern pthread_mutex_t nerror_lock;
 
 // Message Structures
 typedef struct Message {

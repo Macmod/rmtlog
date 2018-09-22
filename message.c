@@ -11,6 +11,8 @@
 
 size_t nsent = 0;
 size_t nerror = 0;
+pthread_mutex_t nsent_lock;
+pthread_mutex_t nerror_lock;
 
 // Alloc space for message
 void alloc_message(Message *m, size_t size) {
@@ -63,14 +65,18 @@ void send_message(Message *m, int sockfd, void *addr, double perr) {
         printf("--- Corruption happened to message.\n");
 #endif
         m->md5[15] += 1;
+        pthread_mutex_lock(&nerror_lock);
         nerror++;
+        pthread_mutex_unlock(&nerror_lock);
     }
 #endif
     memcpy(netbuf+22+m->sz, m->md5, 16);
 
     // Send message
     safe_send(sockfd, netbuf, 38+m->sz, addr);
+    pthread_mutex_lock(&nsent_lock);
     nsent++;
+    pthread_mutex_unlock(&nsent_lock);
 #if DEBUG
     printf("[!] Sent message %lu (sec=%lu, nsec=%u, len=%u)\n", m->seqnum, m->sec, m->nsec, m->sz);
 #endif
