@@ -119,5 +119,6 @@ double timespec_diff(struct timespec *start, struct timespec *end) {
 }
 
 bool get_rand_bool(double perr) {
-    return (double)rand()/RAND_MAX < perr;
+    double val = (double)rand()/RAND_MAX;
+    return val <= perr;
 }
