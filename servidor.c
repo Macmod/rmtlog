@@ -113,19 +113,18 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    double perr;
     if (!safe_read_double(argv[4], &perr)) {
         fprintf(stderr, "Invalid perr.\n");
         exit(EXIT_FAILURE);
     }
 
     // Setup listener address
-    struct in_addr server_addr;
-    inet_pton(AF_INET, INADDR, &server_addr);
+    struct in_addr server_ip;
+    inet_pton(AF_INET, INADDR, &server_ip);
 
-    struct sockaddr_in server = {
+    struct sockaddr_in server_addr = {
         .sin_family = AF_INET,
-        .sin_addr = server_addr,
+        .sin_addr = server_ip,
         .sin_port = htons(port)
     };
 
@@ -135,7 +134,7 @@ int main(int argc, char *argv[]) {
         logerr("Socket error");
 
     // Bind address/port
-    if (bind(sockfd, (struct sockaddr*)&server, sizeof(server)) < 0)
+    if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server)) < 0)
         logerr("Bind error");
 
     // Listen
