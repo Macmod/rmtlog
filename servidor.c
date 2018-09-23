@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
         logerr("Socket error");
 
     // Bind address/port
-    if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server)) < 0)
+    if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
         logerr("Bind error");
 
     // Listen
