@@ -12,7 +12,7 @@
 #include "message.h"
 #include "serversw.h"
 #include "clientlist.h"
-#define ADDR_INTERNET true
+#define ADDR_INTERNET false
 #define INADDR (ADDR_INTERNET ? "192.168.0.66" : "127.0.0.1")
 #define MAX_PENDING_CONNS 10
 
