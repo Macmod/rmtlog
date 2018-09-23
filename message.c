@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <openssl/md5.h>
 #include "utils.h"

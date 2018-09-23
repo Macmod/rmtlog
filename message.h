@@ -1,6 +1,5 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
 #define MESSAGE_CORRUPTION true

@@ -7,13 +7,13 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include "utils.h"
 #include "message.h"
 #include "serversw.h"
 #include "clientlist.h"
-#define INADDR "127.0.0.1"
+#define ADDR_INTERNET true
+#define INADDR (ADDR_INTERNET ? "192.168.0.66" : "127.0.0.1")
 #define MAX_PENDING_CONNS 10
 
 // Client list

@@ -1,6 +1,5 @@
 #ifndef UTILS_H
 #define UTILS_H
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <stdbool.h>
