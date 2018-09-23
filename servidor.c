@@ -23,10 +23,10 @@ pthread_mutex_t clistlock;
 // Main vars
 int sockfd;
 uint16_t port;
-FILE *fout;
+double perr;
 
 // Handle client message
-void message_handler(Message m, Client *client, double perr) {
+void message_handler(FILE *fout, Message m, Client *client) {
     // Ack placeholder
     AckMessage am;
 
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse args
-    fout = fopen(argv[1], "w");
+    FILE *fout = fopen(argv[1], "w");
 
     if (!fout) {
         fprintf(stderr, "Could not open output file '%s'.\n", argv[1]);
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
             printf("--- MD5: OK\n");
 #endif
 
-            message_handler(m, client, perr);
+            message_handler(fout, m, client);
         } else {
 #if DEBUG
             printf("--- MD5: CORRUPT\n");

@@ -21,14 +21,6 @@ typedef struct SlidingWindow {
     uint64_t width;
 } SlidingWindow;
 
-// Ack timeout message
-typedef struct AckTimeoutMsg {
-    int sockfd;
-    SlidingWindowElem *swe;
-    struct sockaddr_in *addr;
-    uint64_t tout;
-} AckTimeoutMsg;
-
 SlidingWindow *make_sliding_window(uint64_t);
 void sliding_window_insert(SlidingWindow*, Message*);
 void free_sliding_window(SlidingWindow*);

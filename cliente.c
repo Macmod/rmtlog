@@ -14,15 +14,18 @@
 #include "ack.h"
 
 int sockfd;
+struct sockaddr_in server_addr;
 uint16_t port;
+uint64_t tout;
+double perr;
+
 size_t nsent;
 size_t nerror;
 pthread_mutex_t nsent_lock;
 pthread_mutex_t nerror_lock;
-FILE *fin;
 
 // Client handler
-size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double perr) {
+size_t client_handler(FILE *fin, uint64_t width) {
     char buf[MAXLN];
     size_t nmsg = 0;
     SlidingWindow *window = make_sliding_window(width);
@@ -62,10 +65,10 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
         sliding_window_insert(window, &m);
 
         // Send message
-        send_message(&m, sockfd, server_addr, perr);
+        send_message(&m, sockfd, &server_addr, perr);
 
         // Set ack timeout
-        create_ack_timer(window->last, sockfd, server_addr, tout);
+        create_ack_timer(window->last);
         set_ack_timeout(window->last, tout);
 
         seqnum++;
@@ -77,7 +80,7 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
                 printf("[!] Window waiting for Ack %lu\n",
                        window->first->msg.seqnum);
 #endif
-                if (recv_ack(&ack, sockfd, server_addr)) {
+                if (recv_ack(&ack, sockfd, &server_addr)) {
 #if DEBUG
                     printf("--- MD5: OK\n");
 #endif
@@ -93,13 +96,13 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
 
     // Receive acks for last window
     // (no more lines to read, although still need to close window)
-    while(window->first != NULL) {
+    while (window->first != NULL) {
         while (!window->first->acked) {
 #if DEBUG
             printf("[!] Window waiting for Ack %lu\n",
                    window->first->msg.seqnum);
 #endif
-            if (recv_ack(&ack, sockfd, server_addr)) {
+            if (recv_ack(&ack, sockfd, &server_addr)) {
 #if DEBUG
                 printf("--- MD5: OK\n");
 #endif
@@ -123,13 +126,13 @@ size_t client_handler(void *server_addr, uint64_t width, uint64_t tout, double p
     // Free sliding window
     free(window);
 
+    // Return number of distinct messages
     return nmsg;
 }
 
 int main(int argc, char *argv[]) {
-    struct in_addr server_addr;
-    struct sockaddr_in client;
     struct timespec start_time, end_time;
+    struct in_addr server_ip;
     double total_time;
 
     // Measure start time
@@ -150,7 +153,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse args
-    fin = fopen(argv[1], "r");
+    FILE *fin = fopen(argv[1], "r");
 
     if (!fin) {
         fprintf(stderr, "Could not open input file '%s'.\n", argv[1]);
@@ -164,7 +167,7 @@ int main(int argc, char *argv[]) {
     char *port_str = strtok(NULL, ":");
 
     // Setup target address
-    inet_pton(AF_INET, ip_str, &server_addr);
+    inet_pton(AF_INET, ip_str, &server_ip);
 
     // Setup port
     if (!safe_read_uint16(port_str, &port)) {
@@ -179,23 +182,20 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    uint64_t tout;
     if (!safe_read_uint64(argv[4], &tout)) {
         fprintf(stderr, "Invalid timeout.\n");
         exit(EXIT_FAILURE);
     }
 
-    double perr;
     if (!safe_read_double(argv[5], &perr)) {
         fprintf(stderr, "Invalid perror.\n");
         exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_in server = {
-        .sin_family = AF_INET,
-        .sin_addr = server_addr,
-        .sin_port = htons(port)
-    };
+    // Setup server addr
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr = server_ip;
+    server_addr.sin_port = htons(port);
 
     // Setup socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&nerror_lock, NULL);
 
     // Run client handler
-    size_t nmsg = client_handler(&server, wtx, tout, perr);
+    size_t nmsg = client_handler(fin, wtx);
 
     // Close connection
     close(sockfd);

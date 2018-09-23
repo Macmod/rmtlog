@@ -6,22 +6,20 @@
 #include "utils.h"
 #include "ack.h"
 
+int sockfd;
+struct sockaddr_in server_addr;
+uint64_t tout;
+double perr;
+
 // Create ack timer
-void create_ack_timer(SlidingWindowElem *swe, int sockfd,
-                      struct sockaddr_in *addr, uint64_t tout) {
+void create_ack_timer(SlidingWindowElem *swe) {
     int status;
     struct sigevent se;
     timer_t timer_id;
 
     // Setup parameters to be sent to ack timeout handler
-    AckTimeoutMsg *atm = malloc(sizeof(AckTimeoutMsg));
-    atm->swe = swe;
-    atm->sockfd = sockfd;
-    atm->addr = addr;
-    atm->tout = tout;
-
     se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)atm;
+    se.sigev_value.sival_ptr = (void*)swe;
     se.sigev_notify_function = ack_timeout;
     se.sigev_notify_attributes = NULL;
 
@@ -29,7 +27,6 @@ void create_ack_timer(SlidingWindowElem *swe, int sockfd,
     if (status == -1)
         logerr("Timer creation error");
 
-    swe->atm = atm;
     swe->timer = timer_id;
 }
 
@@ -64,8 +61,6 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
         return;
     }
 
-    free(swe->atm);
-
     pthread_mutex_lock(&swe->tlock);
     timer_delete(swe->timer);
     swe->timer = NULL;
@@ -73,12 +68,7 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
 }
 
 void ack_timeout(union sigval arg) {
-    AckTimeoutMsg *atm = arg.sival_ptr;
-
-    SlidingWindowElem *swe = atm->swe;
-    int sockfd = atm->sockfd;
-    uint64_t tout = atm->tout;
-    struct sockaddr_in *addr = atm->addr;
+    SlidingWindowElem *swe = (SlidingWindowElem*)arg.sival_ptr;
     Message *msg = &swe->msg;
 
 #if DEBUG
@@ -86,7 +76,7 @@ void ack_timeout(union sigval arg) {
 #endif
 
     pthread_mutex_lock(&swe->tlock);
-    send_message(msg, sockfd, addr, 0);
+    send_message(msg, sockfd, &server_addr, perr);
     set_ack_timeout(swe, tout);
     pthread_mutex_unlock(&swe->tlock);
 }
