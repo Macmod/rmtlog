@@ -69,6 +69,8 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
 
 void ack_timeout(union sigval arg) {
     SlidingWindowElem *swe = (SlidingWindowElem*)arg.sival_ptr;
+
+    // @problem: swe might be already freed here if ack arrived and window slid!
     Message *msg = &swe->msg;
 
 #if DEBUG

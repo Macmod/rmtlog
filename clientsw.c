@@ -25,6 +25,7 @@ void sliding_window_insert(SlidingWindow *sw, Message *m) {
     swe->timer = NULL;
     pthread_mutex_init(&swe->tlock, NULL);
 
+    // Insert last element
     if (sw->first == NULL) {
         sw->first = sw->last = swe;
         return;
@@ -33,6 +34,8 @@ void sliding_window_insert(SlidingWindow *sw, Message *m) {
     aux = sw->last;
     sw->last = aux->next = swe;
 
+    // Remove first element
+    // @problem: should not remove while being retransmitted
     if (sw->count == sw->width-1) {
         aux = sw->first;
         sw->first = aux->next;
@@ -41,21 +44,6 @@ void sliding_window_insert(SlidingWindow *sw, Message *m) {
     } else {
         sw->count++;
     }
-}
-
-void free_sliding_window(SlidingWindow *sw) {
-    if (sw->first != NULL) {
-        SlidingWindowElem *aux = sw->first,
-                          *ph;
-        while (aux != NULL) {
-            ph = aux->next;
-            free_message(&aux->msg);
-            free(aux);
-            aux = ph;
-        }
-    }
-
-    free(sw);
 }
 
 // Set ack flag
