@@ -19,7 +19,6 @@ typedef struct SlidingWindowElem {
 typedef struct SlidingWindow {
     struct SlidingWindowElem *first;
     struct SlidingWindowElem *last;
-    pthread_mutex_t lock;
     uint64_t count;
     uint64_t width;
 } SlidingWindow;
