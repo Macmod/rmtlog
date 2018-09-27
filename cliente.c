@@ -35,7 +35,6 @@ size_t client_handler(FILE *fin, uint64_t width) {
     AckMessage ack;
 
     uint64_t seqnum = 1;
-    bool corrupt;
 
 #if DEBUG
     printf("[!] Sending file...\n");

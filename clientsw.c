@@ -34,14 +34,7 @@ void sliding_window_insert(SlidingWindow *sw, Message *m) {
     aux = sw->last;
     sw->last = aux->next = swe;
 
-    // Remove first element
-    // @problem: should not remove while being retransmitted
-    if (sw->count == sw->width-1) {
-        aux = sw->first;
-        sw->first = aux->next;
-        free_message(&aux->msg);
-        free(aux);
-    } else {
+    if (sw->count != sw->width-1) {
         sw->count++;
     }
 }
@@ -54,6 +47,16 @@ void set_ack_flag(uint64_t seqnum, SlidingWindow *sw) {
         if (seqnum == aux->msg.seqnum) {
             unset_ack_timeout(aux);
             aux->acked = true;
+
+            // @problem: should not remove while being retransmitted
+            if (aux->msg.seqnum == sw->first->msg.seqnum) {
+                pthread_mutex_lock(&aux->tlock);
+                sw->first = aux->next;
+                free_message(&aux->msg);
+                pthread_mutex_unlock(&aux->tlock);
+                /* free(aux); */
+            }
+
             return;
         }
 

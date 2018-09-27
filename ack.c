@@ -56,7 +56,7 @@ void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
 void unset_ack_timeout(SlidingWindowElem *swe) {
     if (swe->timer == NULL) {
 #if DEBUG
-        printf("--- Could not unset timer. Timer already unset.");
+        printf("--- Could not unset timer. Timer already unset.\n");
 #endif
         return;
     }
@@ -70,15 +70,19 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
 void ack_timeout(union sigval arg) {
     SlidingWindowElem *swe = (SlidingWindowElem*)arg.sival_ptr;
 
-    // @problem: swe might be already freed here if ack arrived and window slid!
+    pthread_mutex_lock(&swe->tlock);
     Message *msg = &swe->msg;
 
 #if DEBUG
     printf("[!] Ack for %lu timed out! Retransmitting...\n", msg->seqnum);
 #endif
+    if (swe->msg.buf == NULL) {
+        printf("[!] Window slid right before retransmit for %lu! Aborting...\n", msg->seqnum);
+        return;
+    }
 
-    pthread_mutex_lock(&swe->tlock);
     send_message(msg, sockfd, &server_addr, perr);
     set_ack_timeout(swe, tout);
+
     pthread_mutex_unlock(&swe->tlock);
 }

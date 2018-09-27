@@ -170,6 +170,8 @@ void get_md5(char *data, unsigned long size, char *md5) {
 
 // Memory
 void free_message(Message *m) {
-    if (m->buf != NULL)
+    if (m->buf != NULL) {
         free(m->buf);
+        m->buf = NULL;
+    }
 }
