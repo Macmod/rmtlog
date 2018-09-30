@@ -17,9 +17,12 @@ void create_ack_timer(SlidingWindowElem *swe) {
     struct sigevent se;
     timer_t timer_id;
 
+    uint64_t *seqnum = malloc(sizeof(uint64_t));
+    *seqnum = swe->msg.seqnum;
+
     // Setup parameters to be sent to ack timeout handler
     se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)swe;
+    se.sigev_value.sival_ptr = (void*)seqnum;
     se.sigev_notify_function = ack_timeout;
     se.sigev_notify_attributes = NULL;
 
@@ -28,6 +31,7 @@ void create_ack_timer(SlidingWindowElem *swe) {
         logerr("Timer creation error");
 
     swe->timer = timer_id;
+    swe->param = seqnum;
 }
 
 // Setup ack reception timeout
@@ -56,33 +60,39 @@ void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
 void unset_ack_timeout(SlidingWindowElem *swe) {
     if (swe->timer == NULL) {
 #if DEBUG
-        printf("--- Could not unset timer. Timer already unset.\n");
+        printf("--- Could not unset timer. Timer already unset.");
 #endif
         return;
     }
 
-    pthread_mutex_lock(&swe->tlock);
     timer_delete(swe->timer);
     swe->timer = NULL;
-    pthread_mutex_unlock(&swe->tlock);
+    free(swe->param);
 }
 
 void ack_timeout(union sigval arg) {
-    SlidingWindowElem *swe = (SlidingWindowElem*)arg.sival_ptr;
+    uint64_t *seqnum = (uint64_t*)arg.sival_ptr;
 
-    pthread_mutex_lock(&swe->tlock);
-    Message *msg = &swe->msg;
+    pthread_mutex_lock(&sw->lock);
 
 #if DEBUG
-    printf("[!] Ack for %lu timed out! Retransmitting...\n", msg->seqnum);
+    printf("[!] Ack for %lu timed out! Retransmitting...\n", *seqnum);
 #endif
-    if (swe->msg.buf == NULL) {
-        printf("[!] Window slid right before retransmit for %lu! Aborting...\n", msg->seqnum);
+
+    SlidingWindowElem *swe;
+    if (!get_elem(*seqnum, &swe)) {
+        printf("[!] Ack arrived while timing out %lu! Aborting...\n", *seqnum);
+        pthread_mutex_unlock(&sw->lock);
+        free(seqnum);
         return;
     }
 
+    Message *msg = &swe->msg;
+
+    pthread_mutex_lock(&swe->tlock);
     send_message(msg, sockfd, &server_addr, perr);
     set_ack_timeout(swe, tout);
-
     pthread_mutex_unlock(&swe->tlock);
+
+    pthread_mutex_unlock(&sw->lock);
 }

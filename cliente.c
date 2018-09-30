@@ -23,23 +23,20 @@ size_t nsent;
 size_t nerror;
 pthread_mutex_t nsent_lock;
 pthread_mutex_t nerror_lock;
+SlidingWindow *sw;
 
 // Client handler
 size_t client_handler(FILE *fin, uint64_t width) {
     char buf[MAXLN];
     size_t nmsg = 0;
-    SlidingWindow *window = make_sliding_window(width);
+    sw = make_sliding_window(width);
 
     Message m;
 
-    AckMessage ack;
-
-    uint64_t seqnum = 1;
-
 #if DEBUG
-    printf("[!] Sending file...\n");
+    printf("[!] About to send file...\n");
 #endif
-    while (fgets(buf, MAXLN, fin)) {
+    for (uint64_t seqnum = 1; fgets(buf, MAXLN, fin); seqnum++) {
         size_t msg_len = strlen(buf);
 
         // Strip newline
@@ -60,70 +57,29 @@ size_t client_handler(FILE *fin, uint64_t width) {
         // Fill message
         fill_message(&m, buf, msg_len, seqnum);
 
-        // Put message into sliding window
-        sliding_window_insert(window, &m);
-
         // Send message
         send_message(&m, sockfd, &server_addr, perr);
 
-        // Set ack timeout
-        create_ack_timer(window->last);
-        set_ack_timeout(window->last, tout);
-
-        seqnum++;
+        // Put message into sliding window & setup timer
+        sliding_window_insert(&m);
 
         // Block until ack of first element when window full
-        if (window->count == window->width-1) {
-            while (!window->first->acked) {
-#if DEBUG
-                printf("[!] Window waiting for Ack %lu\n",
-                       window->first->msg.seqnum);
-#endif
-                if (recv_ack(&ack, sockfd, &server_addr)) {
-#if DEBUG
-                    printf("--- MD5: OK\n");
-#endif
-                    set_ack_flag(ack.seqnum, window);
-                } else {
-#if DEBUG
-                    printf("--- MD5: CORRUPT\n");
-#endif
-                }
-            }
-        }
+        if (sw->count == sw->width)
+            block_until_ack();
     }
 
     // Receive acks for last window
     // (no more lines to read, although still need to close window)
-    while (window->first != NULL) {
-        while (!window->first->acked) {
-#if DEBUG
-            printf("[!] Window waiting for Ack %lu\n",
-                   window->first->msg.seqnum);
-#endif
-            if (recv_ack(&ack, sockfd, &server_addr)) {
-#if DEBUG
-                printf("--- MD5: OK\n");
-#endif
-                set_ack_flag(ack.seqnum, window);
-            } else {
-#if DEBUG
-                printf("--- MD5: CORRUPT\n");
-#endif
-            }
-        }
-
-        // Free last elements from sliding window
-        SlidingWindowElem *aux = window->first->next;
-
-        free_message(&window->first->msg);
-        free(window->first);
-
-        window->first = aux;
+    while (sw->count > 1) {
+        block_until_ack();
+        sw->count--;
     }
 
+    // Free sliding window queue
+    free(sw->window);
+
     // Free sliding window
-    free(window);
+    free(sw);
 
     // Return number of distinct messages
     return nmsg;
