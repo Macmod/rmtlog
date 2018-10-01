@@ -54,9 +54,12 @@ bool get_elem(uint64_t seqnum, SlidingWindowElem **swe) {
 // Set ack flag
 void set_ack_flag(uint64_t seqnum) {
     SlidingWindowElem *aux;
-    get_elem(seqnum, &aux);
+    if (!get_elem(seqnum, &aux)) {
+        printf("[x] Acked seqnum %lu out of window! Aborting...\n", seqnum);
+        return;
+    }
 
-    // Lock access to timer meanwhile
+    // Lock access to timer
     pthread_mutex_lock(&aux->tlock);
     unset_ack_timeout(aux);
     aux->acked = true;
@@ -67,6 +70,11 @@ void block_until_ack() {
     AckMessage ack;
 
     while (!sw->window[0].acked) {
+#if DEBUG
+        printf("--- Window locked at [%lu, %lu]. Waiting for ack...\n",
+                sw->window[0].msg.seqnum,
+                sw->window[sw->count-1].msg.seqnum);
+#endif
         if (recv_ack(&ack, sockfd, &server_addr)) {
 #if DEBUG
             printf("--- MD5: OK\n");

@@ -60,7 +60,7 @@ void set_ack_timeout(SlidingWindowElem *swe, uint64_t tout) {
 void unset_ack_timeout(SlidingWindowElem *swe) {
     if (swe->timer == NULL) {
 #if DEBUG
-        printf("--- Could not unset timer. Timer already unset.");
+        printf("--- Could not unset timer. Timer already unset.\n");
 #endif
         return;
     }
