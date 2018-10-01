@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <time.h>
 #include <pthread.h>
 #include "utils.h"
 #include "ack.h"
@@ -17,12 +16,13 @@ void create_ack_timer(SlidingWindowElem *swe) {
     struct sigevent se;
     timer_t timer_id;
 
-    uint64_t *seqnum = malloc(sizeof(uint64_t));
-    *seqnum = swe->msg.seqnum;
+    /* uint64_t *seqnum = malloc(sizeof(uint64_t)); */
+    /* *seqnum = swe->msg.seqnum; */
 
     // Setup parameters to be sent to ack timeout handler
     se.sigev_notify = SIGEV_THREAD;
-    se.sigev_value.sival_ptr = (void*)seqnum;
+    /* se.sigev_value.sival_ptr = (void*)seqnum; */
+    se.sigev_value.sival_int = swe->msg.seqnum;
     se.sigev_notify_function = ack_timeout;
     se.sigev_notify_attributes = NULL;
 
@@ -31,7 +31,7 @@ void create_ack_timer(SlidingWindowElem *swe) {
         logerr("Timer creation error");
 
     swe->timer = timer_id;
-    swe->param = seqnum;
+    /* swe->param = seqnum; */
 }
 
 // Setup ack reception timeout
@@ -72,18 +72,20 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
 void ack_timeout(union sigval arg) {
     pthread_mutex_lock(&sw->lock);
 
-    uint64_t *seqnum = (uint64_t*)arg.sival_ptr;
+    /* uint64_t *seqnum = (uint64_t*)arg.sival_ptr; */
+    uint64_t seqnum = (uint64_t)arg.sival_int;
+
     SlidingWindowElem *swe;
-    if (!get_elem(*seqnum, &swe)) {
+    if (!get_elem(seqnum, &swe)) {
 #if DEBUG
-        printf("[x] Ack %lu arrived just before timeout! Aborting...\n", *seqnum);
+        printf("[x] Ack %lu arrived just before timeout! Aborting...\n", seqnum);
 #endif
         pthread_mutex_unlock(&sw->lock);
         return;
     }
 
 #if DEBUG
-    printf("[!] Ack %lu timed out! Retransmitting...\n", *seqnum);
+    printf("[!] Ack %lu timed out! Retransmitting...\n", seqnum);
 #endif
 
     Message *msg = &swe->msg;
