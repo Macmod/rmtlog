@@ -36,7 +36,7 @@ size_t client_handler(FILE *fin, uint64_t width) {
 #if DEBUG
     printf("[!] About to send file...\n");
 #endif
-    for (uint64_t seqnum = 1; fgets(buf, MAXLN, fin); seqnum++) {
+    for (uint64_t seqnum = 0; fgets(buf, MAXLN, fin); seqnum++) {
         size_t msg_len = strlen(buf);
 
         // Strip newline

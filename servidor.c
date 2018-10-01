@@ -14,7 +14,6 @@
 #include "clientlist.h"
 #define ADDR_INTERNET false
 #define INADDR (ADDR_INTERNET ? "192.168.0.66" : "127.0.0.1")
-#define MAX_PENDING_CONNS 10
 
 // Client list
 ClientList clist;
@@ -136,9 +135,6 @@ int main(int argc, char *argv[]) {
     // Bind address/port
     if (bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0)
         logerr("Bind error");
-
-    // Listen
-    listen(sockfd, MAX_PENDING_CONNS);
 
     // Client address placeholder
     struct sockaddr_in addr;
