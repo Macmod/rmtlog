@@ -55,7 +55,7 @@ bool get_elem(uint64_t seqnum, SlidingWindowElem **swe) {
 void set_ack_flag(uint64_t seqnum) {
     SlidingWindowElem *aux;
     if (!get_elem(seqnum, &aux)) {
-        printf("[x] Acked seqnum %lu out of window! Aborting...\n", seqnum);
+        printf("[x] Received ack out of window (%lu). Aborting...\n", seqnum);
         return;
     }
 
@@ -91,6 +91,7 @@ void block_until_ack() {
     // Slide (lock access to window meanwhile)
     pthread_mutex_lock(&sw->lock);
     free_message(&sw->window[0].msg);
+    free(sw->window[0].param);
 
     for (uint64_t i = 0; i < sw->count-1; i++) {
         sw->window[i] = sw->window[i+1];

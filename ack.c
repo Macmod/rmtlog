@@ -67,25 +67,24 @@ void unset_ack_timeout(SlidingWindowElem *swe) {
 
     timer_delete(swe->timer);
     swe->timer = NULL;
-    free(swe->param);
 }
 
 void ack_timeout(union sigval arg) {
-    uint64_t *seqnum = (uint64_t*)arg.sival_ptr;
-
     pthread_mutex_lock(&sw->lock);
 
-#if DEBUG
-    printf("[!] Ack for %lu timed out! Retransmitting...\n", *seqnum);
-#endif
-
+    uint64_t *seqnum = (uint64_t*)arg.sival_ptr;
     SlidingWindowElem *swe;
     if (!get_elem(*seqnum, &swe)) {
-        printf("[!] Ack arrived while timing out %lu! Aborting...\n", *seqnum);
+#if DEBUG
+        printf("[x] Ack %lu arrived just before timeout! Aborting...\n", *seqnum);
+#endif
         pthread_mutex_unlock(&sw->lock);
-        free(seqnum);
         return;
     }
+
+#if DEBUG
+    printf("[!] Ack %lu timed out! Retransmitting...\n", *seqnum);
+#endif
 
     Message *msg = &swe->msg;
 
