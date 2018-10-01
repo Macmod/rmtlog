@@ -6,6 +6,7 @@
 #include "ack.h"
 
 SlidingWindow *sw;
+pthread_mutex_t swlock;
 
 // Sliding Window
 SlidingWindow *make_sliding_window(uint64_t width) {
@@ -15,13 +16,13 @@ SlidingWindow *make_sliding_window(uint64_t width) {
     sw->window = window;
     sw->count = 0;
     sw->width = width;
-    pthread_mutex_init(&sw->lock, NULL);
+    pthread_mutex_init(&swlock, NULL);
 
     return sw;
 }
 
 void sliding_window_insert(Message *m) {
-    pthread_mutex_lock(&sw->lock);
+    pthread_mutex_lock(&swlock);
 
     if (sw->count != sw->width) {
         sw->count++;
@@ -36,7 +37,7 @@ void sliding_window_insert(Message *m) {
     create_ack_timer(&sw->window[sw->count-1]);
     set_ack_timeout(&sw->window[sw->count-1], tout);
 
-    pthread_mutex_unlock(&sw->lock);
+    pthread_mutex_unlock(&swlock);
 }
 
 bool get_elem(uint64_t seqnum, SlidingWindowElem **swe) {
@@ -89,14 +90,14 @@ void block_until_ack() {
     }
 
     // Slide (lock access to window meanwhile)
-    pthread_mutex_lock(&sw->lock);
+    pthread_mutex_lock(&swlock);
     free_message(&sw->window[0].msg);
     /* free(sw->window[0].param); */
 
     for (uint64_t i = 0; i < sw->count-1; i++) {
         sw->window[i] = sw->window[i+1];
     }
-    pthread_mutex_unlock(&sw->lock);
+    pthread_mutex_unlock(&swlock);
 
 #if DEBUG
     printf("[!] Window slid to [%lu, %lu]\n",

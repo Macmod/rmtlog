@@ -23,6 +23,7 @@ size_t nsent;
 size_t nerror;
 pthread_mutex_t nsent_lock;
 pthread_mutex_t nerror_lock;
+pthread_mutex_t swlock;
 SlidingWindow *sw;
 
 // Client handler
