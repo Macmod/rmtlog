@@ -11,7 +11,6 @@ typedef struct SlidingWindowElem {
     // Timer variables
     timer_t timer;
     pthread_mutex_t tlock;
-    uint64_t *param;
 
     bool acked;
 } SlidingWindowElem;

@@ -27,7 +27,6 @@ void create_ack_timer(SlidingWindowElem *swe) {
         logerr("Timer creation error");
 
     swe->timer = timer_id;
-    /* swe->param = seqnum; */
 }
 
 // Setup ack reception timeout
