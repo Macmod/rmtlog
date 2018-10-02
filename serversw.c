@@ -34,7 +34,7 @@ void sliding_window_insert(SlidingWindow *sw, Message m) {
 
     while (aux != NULL) {
         if (m.seqnum == aux->msg.seqnum) {
-            if (aux->msg.buf != NULL) { // Caso anômalo
+            if (aux->msg.buf == NULL) { // Caso anômalo
                 aux->msg.sz = m.sz;
                 aux->msg.buf = (char*)malloc(sizeof(char)*m.sz);
                 memcpy(aux->msg.buf, m.buf, m.sz);
