@@ -10,7 +10,7 @@ SlidingWindow *make_sliding_window(uint64_t width) {
     sw->width = width;
 
     SlidingWindowElem *swe = NULL;
-    Message void_msg = {0};
+    Message void_msg = {0, 0, 0, 0, NULL, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"};
 
     for (uint64_t i = 0; i < width; i++) {
         void_msg.seqnum = i;
@@ -47,7 +47,7 @@ void sliding_window_insert(SlidingWindow *sw, Message m) {
 }
 
 void sliding_window_slide(SlidingWindow *sw) {
-    Message void_msg = {0};
+    Message void_msg = {0, 0, 0, 0, NULL, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"};
     SlidingWindowElem *aux, *swe;
 
     bool trivial = sw->first == sw->last;
