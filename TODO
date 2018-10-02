@@ -1,2 +1,0 @@
-- Check everything, especially mutexes & possible leaks.
-- Compare to teacher's implementation.
